@@ -1,0 +1,42 @@
+# A systemd unit file. systemd starts this on boot and restarts it if it
+# crashes, so the app keeps running after you close your SSH session.
+#
+# setup-ec2.sh copies this to /etc/systemd/system/black-forest.service.
+# Useful commands once it's installed:
+#   sudo systemctl status black-forest     # is it running?
+#   sudo systemctl restart black-forest    # restart after a deploy
+#   journalctl -u black-forest -f          # follow the logs
+[Unit]
+Description=The Black Forest - text-based dungeon crawler RPG
+After=network.target
+
+[Service]
+Type=simple
+
+# Run as an unprivileged service account, not root. If someone finds a hole
+# in the app, they get this account and nothing more.
+User=blackforest
+Group=blackforest
+
+WorkingDirectory=/opt/black-forest
+ExecStart=/usr/bin/node server/server.js
+
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=DATA_FILE=/opt/black-forest/data/black-forest.db
+
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+
+# Cheap hardening: the app can only write to its own data directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/black-forest/data
+
+[Install]
+WantedBy=multi-user.target
