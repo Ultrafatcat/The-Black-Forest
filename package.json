@@ -1,0 +1,19 @@
+{
+  "name": "black-forest",
+  "version": "0.1.0",
+  "description": "The Black Forest: a text-based dungeon crawler RPG (CS408 project)",
+  "private": true,
+  "type": "module",
+  "main": "server/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/server.js",
+    "seed": "node server/db/seed.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "express": "^5.1.0"
+  }
+}
