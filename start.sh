@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-REQUIRED_NODE_MAJOR=20   # keep this in sync with package.json's "engines"
+REQUIRED_NODE_MAJOR=22   # keep this in sync with package.json's "engines"
 
 DEV_MODE="false"
 PORT_OVERRIDE=""
