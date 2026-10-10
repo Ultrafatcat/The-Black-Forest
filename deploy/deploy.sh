@@ -84,7 +84,6 @@ ssh "${SSH_OPTS[@]}" "$TARGET" "
     set -e
     cd '${REMOTE_DIR}'
     npm ci --omit=dev
-    npm run seed
     sudo systemctl restart ${SERVICE}
     sleep 2
     sudo systemctl is-active --quiet ${SERVICE} && echo 'service is running'

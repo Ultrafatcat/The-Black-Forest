@@ -19,6 +19,7 @@ User=blackforest
 Group=blackforest
 
 WorkingDirectory=/opt/black-forest
+ExecStartPre=/usr/bin/node server/db/seed.js
 ExecStart=/usr/bin/node server/server.js
 
 Environment=NODE_ENV=production
