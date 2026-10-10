@@ -6,14 +6,13 @@
   "type": "module",
   "main": "server/server.js",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.5.0"
   },
   "scripts": {
     "start": "node server/server.js",
     "seed": "node server/db/seed.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.3.0",
     "express": "^5.1.0"
   }
 }
