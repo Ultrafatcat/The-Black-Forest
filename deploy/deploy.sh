@@ -9,8 +9,8 @@
 #
 # What it does:
 #   1. Run tests locally -- refuses to deploy if anything's broken.
-#   2. rsync the source to /opt/black-forest on the server (node_modules,
-#      .git, and the server's own data file are left behind).
+#   2. Copy the source to /opt/black-forest on the server with tar over ssh
+#      (node_modules, .git and the server's own data file are left behind).
 #   3. Install production dependencies there and seed the world data.
 #   4. Restart the black-forest systemd service.
 #   5. Check GET /health on the server to confirm the deploy succeeded.
@@ -64,16 +64,20 @@ echo "==> Running tests before deploying"
 npm test
 
 echo "==> Copying files to ${TARGET}:${REMOTE_DIR}"
-rsync -az --delete \
-    --exclude '.git' \
-    --exclude 'node_modules' \
-    --exclude 'data' \
-    --exclude '*.pem' \
-    --exclude '.env' \
-    --exclude '.DS_Store' \
-    --exclude '*.log' \
-    -e "ssh ${SSH_OPTS[*]}" \
-    ./ "${TARGET}:${REMOTE_DIR}/"
+# Git for Windows doesn't bundle rsync, so tar piped over ssh is used instead
+# -- a standard substitute. This does a full copy every time rather than an
+# incremental diff (so it won't remove files on the server that you deleted
+# locally, unlike rsync --delete), but that's a fine tradeoff at this size.
+ssh "${SSH_OPTS[@]}" "$TARGET" "mkdir -p '${REMOTE_DIR}'"
+tar czf - \
+    --exclude='.git' \
+    --exclude='node_modules' \
+    --exclude='data' \
+    --exclude='*.pem' \
+    --exclude='.env' \
+    --exclude='.DS_Store' \
+    --exclude='*.log' \
+    . | ssh "${SSH_OPTS[@]}" "$TARGET" "tar xzf - -C '${REMOTE_DIR}'"
 
 echo "==> Installing dependencies, seeding, and restarting the service"
 ssh "${SSH_OPTS[@]}" "$TARGET" "
