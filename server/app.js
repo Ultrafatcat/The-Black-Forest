@@ -6,12 +6,25 @@
 
 import express from 'express';
 import './db/connection.js'; // creates/verifies the database on startup
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT_DIR = path.join(__dirname, '..');
 
 export function createApp() {
     const app = express();
+    app.set('view engine', 'pug');
+    app.set('views', path.join(ROOT_DIR, 'views'));
+    app.use(express.static(path.join(ROOT_DIR, 'public')));
+
+    app.use((request, response, next) => {
+        response.locals.user = null; // overwritten once sessions exist (Login/Register)
+        next();
+    });
 
     app.get('/', (request, response) => {
-        response.send('The Black Forest is running. Pages arrive in later checkpoints.');
+        response.render('menu', { title: 'The Black Forest', hasRun: false });
     });
 
     app.get('/health', (request, response) => {

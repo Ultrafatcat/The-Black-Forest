@@ -1,0 +1,16 @@
+extends layout
+
+block content
+  .text-center.py-5
+    h1.display-4 The Black Forest
+    p.lead.text-muted A text-based dungeon crawler. No download, no map &mdash; just the forest and what you type.
+
+    .d-grid.gap-2.col-6.col-md-4.mx-auto.mt-4
+      button.btn.btn-success.btn-lg(disabled title="Coming in Checkpoint 2") New Game
+      button.btn.btn-outline-light.btn-lg(disabled title="Unlocks once a run exists") Continue
+      button.btn.btn-outline-light.btn-lg(disabled title="Unlocks once a run exists") Character
+      button.btn.btn-outline-secondary(disabled title="Coming in a later checkpoint") Dictionary
+      button.btn.btn-outline-secondary(disabled title="Coming in a later checkpoint") Leaderboard
+      if user
+        button.btn.btn-outline-secondary(disabled title="Coming in a later checkpoint") Friends
+      button.btn.btn-outline-secondary(disabled title="Coming in a later checkpoint") Settings
