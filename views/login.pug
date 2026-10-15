@@ -1,0 +1,36 @@
+extends layout
+
+block content
+  .row.justify-content-center
+    .col-md-8
+      h1.mb-4.text-center Login / Register
+
+      if error
+        .alert.alert-danger= error
+
+      .row.g-4
+        .col-md-6
+          .card.bg-dark.border-secondary.h-100
+            .card-body
+              h2.h5.card-title Login
+              form(method="post" action="/login")
+                .mb-3
+                  label.form-label(for="login-username") Username
+                  input#login-username.form-control(type="text" name="username" required autocomplete="username")
+                .mb-3
+                  label.form-label(for="login-password") Password
+                  input#login-password.form-control(type="password" name="password" required autocomplete="current-password")
+                button.btn.btn-primary(type="submit") Log in
+
+        .col-md-6
+          .card.bg-dark.border-secondary.h-100
+            .card-body
+              h2.h5.card-title Register
+              form(method="post" action="/register")
+                .mb-3
+                  label.form-label(for="register-username") Username
+                  input#register-username.form-control(type="text" name="username" required autocomplete="username")
+                .mb-3
+                  label.form-label(for="register-password") Password
+                  input#register-password.form-control(type="password" name="password" required autocomplete="new-password")
+                button.btn.btn-success(type="submit") Create account
