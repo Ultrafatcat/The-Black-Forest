@@ -14,7 +14,8 @@
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "pug": "^3.0.4"
   },
   "devDependencies": {
     "supertest": "^7.0.0"
