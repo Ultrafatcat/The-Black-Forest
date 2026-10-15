@@ -1,18 +1,19 @@
 nav.navbar.navbar-expand-md.navbar-dark.bg-dark
   .container
-    a.navbar-brand(href="/") The Black Forest
+    a.navbar-brand(href="/")
+      i.bi.bi-tree-fill.me-1
+      | The Black Forest
     button.navbar-toggler(type="button" data-bs-toggle="collapse" data-bs-target="#navLinks")
       span.navbar-toggler-icon
     #navLinks.collapse.navbar-collapse
       ul.navbar-nav.ms-auto
-        li.nav-item
-          span.nav-link.disabled Dictionary
-        li.nav-item
-          span.nav-link.disabled Leaderboard
-        li.nav-item
-          span.nav-link.disabled Settings
+        //- Nav holds account identity only -- Dictionary, Leaderboard, Settings
+        //- etc. are destinations and live as buttons on the menu page instead,
+        //- so they're not duplicated in two places on screen.
         if user
           li.nav-item
+            //- Stand-in for the account page (not built yet): the Login link
+            //- "evolves" into the player's name once a session exists.
             span.nav-link #{user.nickname}
           li.nav-item
             form(method="post" action="/logout")
