@@ -1,0 +1,9 @@
+body {
+    background-color: #12100e;
+    color: #e8e3da;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
