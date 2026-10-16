@@ -1,3 +1,11 @@
+:root {
+    /* Bootstrap components (e.g. .card) read this variable for their text
+       color rather than inheriting the plain `color` property below, so
+       both need to be set or anything inside a .card.bg-dark renders
+       near-invisible (dark text on a dark background). */
+    --bs-body-color: #e8e3da;
+}
+
 body {
     background-color: #12100e;
     color: #e8e3da;
@@ -6,4 +14,17 @@ body {
 .navbar-brand {
     font-weight: 600;
     letter-spacing: 0.02em;
+}
+
+/* Form fields keep Bootstrap's white background even on this dark theme,
+   so their text (and the dots standing in for a typed password) need to
+   stay dark -- otherwise they inherit the page's light --bs-body-color
+   above and become nearly invisible on that white background.
+   Bootstrap's own .form-control:focus rule re-applies the light color
+   specifically while a field is focused (i.e. while you're typing in it),
+   and it's more specific than the plain rule above, so :focus needs its
+   own copy of this or the field goes invisible-while-typing again. */
+.form-control,
+.form-control:focus {
+    color: #212529;
 }

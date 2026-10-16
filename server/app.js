@@ -7,7 +7,7 @@
 import express from 'express';
 import session from 'express-session';
 import { db } from './db/connection.js'; // creates/verifies the database on startup
-import { hashPassword, verifyPassword } from './utils/password.js';
+import { hashPassword, verifyPassword, passwordRequirementFailures } from './utils/password.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -43,24 +43,47 @@ export function createApp() {
     });
 
     app.get('/login', (request, response) => {
-        response.render('login', { title: 'Login / Register', error: null });
+        response.render('login', { title: 'Login', error: null, username: '' });
+    });
+
+    app.get('/register', (request, response) => {
+        response.render('register', { title: 'Register', error: null, username: '' });
     });
 
     app.post('/register', (request, response) => {
-        const { username, password } = request.body;
+        const { username, password, confirmPassword } = request.body;
 
-        if (!username || !password) {
-            return response.status(400).render('login', {
-                title: 'Login / Register',
-                error: 'Username and password are both required.',
+        if (!username || !password || !confirmPassword) {
+            return response.status(400).render('register', {
+                title: 'Register',
+                error: 'Username, password, and password confirmation are all required.',
+                username,
+            });
+        }
+
+        if (password !== confirmPassword) {
+            return response.status(400).render('register', {
+                title: 'Register',
+                error: 'Passwords do not match.',
+                username,
+            });
+        }
+
+        const failures = passwordRequirementFailures(password);
+        if (failures.length > 0) {
+            return response.status(400).render('register', {
+                title: 'Register',
+                error: `Password is missing: ${failures.join(', ')}.`,
+                username,
             });
         }
 
         const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
         if (existing) {
-            return response.status(409).render('login', {
-                title: 'Login / Register',
+            return response.status(409).render('register', {
+                title: 'Register',
                 error: 'That username is already taken.',
+                username,
             });
         }
 
@@ -81,8 +104,9 @@ export function createApp() {
 
         if (!passwordOk) {
             return response.status(401).render('login', {
-                title: 'Login / Register',
+                title: 'Login',
                 error: 'Incorrect username or password.',
+                username,
             });
         }
 

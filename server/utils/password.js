@@ -27,3 +27,17 @@ export function verifyPassword(password, stored) {
     return hashBuffer.length === candidateBuffer.length
         && timingSafeEqual(hashBuffer, candidateBuffer);
 }
+
+// Registration password rules. Mirrored in public/js/register.js for live
+// feedback as the player types -- that copy is UX only, never trusted on
+// its own, so it's checked again here on every submit.
+const PASSWORD_REQUIREMENTS = [
+    { label: 'at least 6 characters', test: (value) => value.length >= 6 },
+    { label: 'at least one uppercase letter', test: (value) => /[A-Z]/.test(value) },
+    { label: 'at least one number', test: (value) => /[0-9]/.test(value) },
+    { label: 'at least one special character', test: (value) => /[^A-Za-z0-9]/.test(value) },
+];
+
+export function passwordRequirementFailures(password) {
+    return PASSWORD_REQUIREMENTS.filter(({ test }) => !test(password)).map(({ label }) => label);
+}

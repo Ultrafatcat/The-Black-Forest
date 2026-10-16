@@ -1,0 +1,35 @@
+extends layout
+
+block content
+  .text-center.py-5
+    h1.mb-4 Register
+
+    if error
+      .alert.alert-danger.col-10.col-sm-6.col-md-4.mx-auto= error
+
+    form.col-10.col-sm-6.col-md-4.mx-auto.text-start#register-form(method="post" action="/register" novalidate)
+      .mb-3
+        label.form-label(for="register-username") Username
+        input#register-username.form-control(type="text" name="username" value=username required autocomplete="username")
+      .mb-3
+        label.form-label(for="register-password") Password
+        input#register-password.form-control(type="password" name="password" required autocomplete="new-password")
+        //- Live feedback only -- server/utils/password.js enforces the real rules.
+        //- Hidden until the field is focused, so the page doesn't greet the
+        //- player with four red bullet points before they've typed anything.
+        ul#password-requirements.small.mt-2.ps-3.mb-0(hidden)
+          li#req-length.text-danger At least 6 characters
+          li#req-upper.text-danger At least 1 uppercase letter
+          li#req-number.text-danger At least 1 number
+          li#req-special.text-danger At least 1 special character
+      .mb-3
+        label.form-label(for="register-confirm") Confirm Password
+        input#register-confirm.form-control(type="password" name="confirmPassword" required autocomplete="new-password")
+        .small.text-danger.mt-1#confirm-mismatch(hidden) Passwords do not match
+
+      .d-grid.gap-2.mt-4
+        button.btn.btn-success.btn-lg(type="submit") Sign Up
+        a.btn.btn-outline-light.btn-lg(href="/login") Login
+        a.btn.btn-outline-secondary(href="/") Return
+
+  script(src="/js/register.js")
