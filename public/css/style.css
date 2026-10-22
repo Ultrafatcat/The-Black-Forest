@@ -25,6 +25,8 @@ body {
    and it's more specific than the plain rule above, so :focus needs its
    own copy of this or the field goes invisible-while-typing again. */
 .form-control,
-.form-control:focus {
+.form-control:focus,
+.form-select,
+.form-select:focus {
     color: #212529;
 }
