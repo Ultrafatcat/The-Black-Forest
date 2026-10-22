@@ -12,9 +12,7 @@ nav.navbar.navbar-expand-md.navbar-dark.bg-dark
         //- so they're not duplicated in two places on screen.
         if user
           li.nav-item
-            //- Stand-in for the account page (not built yet): the Login link
-            //- "evolves" into the player's name once a session exists.
-            span.nav-link #{user.nickname}
+            a.nav-link(href="/account")= user.nickname
           li.nav-item
             form(method="post" action="/logout")
               button.btn.btn-link.nav-link(type="submit") Log out
