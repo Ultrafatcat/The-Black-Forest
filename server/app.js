@@ -225,6 +225,39 @@ export function createApp() {
         response.redirect('/character');
     });
 
+        app.get('/account', (request, response) => {
+        if (!request.session.user) {
+            return response.redirect('/login');
+        }
+
+        const account = db.prepare('SELECT username, nickname, is_public FROM users WHERE id = ?').get(request.session.user.id);
+        response.render('account', { title: 'Account', account, error: null, saved: false });
+    });
+
+    app.post('/account', (request, response) => {
+        if (!request.session.user) {
+            return response.redirect('/login');
+        }
+
+        const { nickname } = request.body;
+        // Checkboxes only appear in the POST body when checked, so a toggle
+        // left off arrives as undefined -- that's what "unchecked" looks like.
+        const isPublic = request.body.isPublic ? 1 : 0;
+
+        if (!nickname || !nickname.trim()) {
+            const account = db.prepare('SELECT username, nickname, is_public FROM users WHERE id = ?').get(request.session.user.id);
+            return response.status(400).render('account', { title: 'Account', account, error: 'Nickname cannot be empty.', saved: false });
+        }
+
+        db.prepare('UPDATE users SET nickname = ?, is_public = ? WHERE id = ?')
+            .run(nickname.trim(), isPublic, request.session.user.id);
+
+        request.session.user.nickname = nickname.trim();
+
+        const account = db.prepare('SELECT username, nickname, is_public FROM users WHERE id = ?').get(request.session.user.id);
+        response.render('account', { title: 'Account', account, error: null, saved: true });
+    });
+
     app.get('/health', (request, response) => {
         response.json({ status: 'ok', uptime: process.uptime() });
     });
