@@ -1,0 +1,29 @@
+extends layout
+
+block content
+  .py-5
+    h1.mb-1.text-center Character Creation
+    p.text-muted.text-center.mb-4 Choose a name, a race, and a class. There's no going back from this page &mdash; submitting takes you straight into the forest.
+
+    if error
+      .alert.alert-danger.col-10.col-sm-6.col-md-5.mx-auto= error
+
+    form.col-10.col-sm-6.col-md-5.mx-auto(method="post" action="/character/new")
+      .mb-3
+        label.form-label(for="char-name") Name
+        input#char-name.form-control(type="text" name="name" value=name required autofocus)
+
+      .mb-3
+        label.form-label(for="char-race") Race
+        select#char-race.form-select(name="race")
+          each r in races
+            option(value=r selected=(r === race))= r
+
+      .mb-4
+        label.form-label(for="char-class") Class
+        select#char-class.form-select(name="class")
+          each c in classes
+            option(value=c selected=(c === characterClass))= c
+
+      .d-grid
+        button.btn.btn-success.btn-lg(type="submit") Begin

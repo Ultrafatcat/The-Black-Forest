@@ -8,6 +8,7 @@ import express from 'express';
 import session from 'express-session';
 import { db } from './db/connection.js'; // creates/verifies the database on startup
 import { hashPassword, verifyPassword, passwordRequirementFailures } from './utils/password.js';
+import { RACES, CLASSES, isValidRace, isValidClass, computeStartingStats, STARTING_ATTRIBUTE_POINTS } from './game/characterCreation.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -39,7 +40,10 @@ export function createApp() {
     });
 
     app.get('/', (request, response) => {
-        response.render('menu', { title: 'The Black Forest', hasRun: false });
+        // A "run" is just a character the session points at -- true for a
+        // guest (characterId only) and for a logged-in player alike, so
+        // Continue/Character unlock the same way regardless of login.
+        response.render('menu', { title: 'The Black Forest', hasRun: Boolean(request.session.characterId) });
     });
 
     app.get('/login', (request, response) => {
@@ -116,6 +120,68 @@ export function createApp() {
 
     app.post('/logout', (request, response) => {
         request.session.destroy(() => response.redirect('/'));
+    });
+
+    app.get('/character/new', (request, response) => {
+        response.render('character-new', {
+            title: 'Character Creation',
+            races: RACES,
+            classes: CLASSES,
+            error: null,
+            name: '',
+            race: RACES[0],
+            characterClass: CLASSES[0],
+        });
+    });
+
+    app.post('/character/new', (request, response) => {
+        const { name, race, class: characterClass } = request.body;
+
+        const renderError = (error) => response.status(400).render('character-new', {
+            title: 'Character Creation',
+            races: RACES,
+            classes: CLASSES,
+            error,
+            name: name || '',
+            race: isValidRace(race) ? race : RACES[0],
+            characterClass: isValidClass(characterClass) ? characterClass : CLASSES[0],
+        });
+
+        if (!name || !name.trim()) {
+            return renderError('A character needs a name.');
+        }
+        if (!isValidRace(race)) {
+            return renderError('Choose a race from the list.');
+        }
+        if (!isValidClass(characterClass)) {
+            return renderError('Choose a class from the list.');
+        }
+
+        const stats = computeStartingStats(race, characterClass);
+        // user_id is NULL for a guest run -- the characters table allows that
+        // (see schema.sql), and the session-held characterId is what both
+        // guest and logged-in play key off of from here on.
+        const userId = request.session.user ? request.session.user.id : null;
+
+        const result = db.prepare(`
+            INSERT INTO characters (
+                user_id, name, race, class, health, max_health, mana, max_mana,
+                strength, stamina, agility, dexterity, resilience, intelligence, luck,
+                attribute_points
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            userId, name.trim(), race, characterClass,
+            stats.maxHealth, stats.maxHealth, stats.maxMana, stats.maxMana,
+            stats.strength, stats.stamina, stats.agility, stats.dexterity,
+            stats.resilience, stats.intelligence, stats.luck,
+            STARTING_ATTRIBUTE_POINTS,
+        );
+
+        request.session.characterId = Number(result.lastInsertRowid);
+
+        // The Adventure page doesn't exist until Checkpoint 3, so the
+        // Character Sheet is where a new run lands for now.
+        response.redirect('/character');
     });
 
     app.get('/health', (request, response) => {
