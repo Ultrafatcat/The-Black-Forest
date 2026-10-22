@@ -1,0 +1,29 @@
+extends layout
+
+block content
+  .py-4
+    h1.mb-4 Account
+
+    if saved
+      .alert.alert-success Saved.
+    if error
+      .alert.alert-danger= error
+
+    .col-10.col-sm-6.col-md-4
+
+      .mb-4
+        .form-label.text-muted.small.text-uppercase Username
+        p.fs-5= account.username
+
+      form(method="post" action="/account")
+        .mb-3
+          label.form-label(for="nickname") Nickname
+          input#nickname.form-control(type="text" name="nickname" value=account.nickname required)
+
+        .form-check.form-switch.mb-4
+          input#isPublic.form-check-input(type="checkbox" name="isPublic" checked=Boolean(account.is_public))
+          label.form-check-label(for="isPublic") Show my character on the public leaderboard
+
+        button.btn.btn-success(type="submit") Save Changes
+
+      a.btn.btn-outline-light.mt-3(href="/") Return to Menu
