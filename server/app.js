@@ -9,6 +9,7 @@ import session from 'express-session';
 import { db } from './db/connection.js'; // creates/verifies the database on startup
 import { hashPassword, verifyPassword, passwordRequirementFailures } from './utils/password.js';
 import { RACES, CLASSES, isValidRace, isValidClass, computeStartingStats, STARTING_ATTRIBUTE_POINTS } from './game/characterCreation.js';
+import { spendAttributePoint, ALLOCATABLE_ATTRIBUTES } from './game/attributePoints.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -181,6 +182,46 @@ export function createApp() {
 
         // The Adventure page doesn't exist until Checkpoint 3, so the
         // Character Sheet is where a new run lands for now.
+        response.redirect('/character');
+    });
+
+    app.get('/character', (request, response) => {
+        if (!request.session.characterId) {
+            return response.redirect('/character/new');
+        }
+
+        const character = db.prepare('SELECT * FROM characters WHERE id = ?').get(request.session.characterId);
+        if (!character) {
+            // The character behind this session vanished (e.g. a reseeded
+            // dev database) -- clear the stale pointer instead of 500ing.
+            request.session.characterId = null;
+            return response.redirect('/character/new');
+        }
+
+        response.render('character-sheet', { title: character.name, character, error: null, allocatableAttributes: ALLOCATABLE_ATTRIBUTES });
+    });
+
+    app.post('/character/attributes', (request, response) => {
+        if (!request.session.characterId) {
+            return response.redirect('/character/new');
+        }
+
+        const character = db.prepare('SELECT * FROM characters WHERE id = ?').get(request.session.characterId);
+        if (!character) {
+            request.session.characterId = null;
+            return response.redirect('/character/new');
+        }
+
+        const result = spendAttributePoint(character, request.body.stat);
+        if (!result.ok) {
+            return response.status(400).render('character-sheet', { title: character.name, character, error: result.error, allocatableAttributes: ALLOCATABLE_ATTRIBUTES });
+        }
+
+        const columns = Object.keys(result.changes);
+        const assignments = columns.map((column) => `${column} = ?`).join(', ');
+        db.prepare(`UPDATE characters SET ${assignments}, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`)
+            .run(...columns.map((column) => result.changes[column]), character.id);
+
         response.redirect('/character');
     });
 

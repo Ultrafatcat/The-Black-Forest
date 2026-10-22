@@ -1,0 +1,53 @@
+extends layout
+
+block content
+  .py-4
+    .d-flex.justify-content-between.align-items-start.flex-wrap.gap-2.mb-3
+      div
+        h1.mb-0= character.name
+        p.text-muted.mb-0= character.race + ' ' + character.class + ' · Level ' + character.level
+
+    if error
+      .alert.alert-danger= error
+
+    .row.g-4
+      .col-md-6
+        .card.bg-dark.border-secondary
+          .card-body
+            h2.h5.card-title Attributes
+            ul.list-group.list-group-flush
+              li.list-group-item.bg-dark.d-flex.justify-content-between
+                span Health
+                span= character.health + ' / ' + character.max_health
+              li.list-group-item.bg-dark.d-flex.justify-content-between
+                span Mana
+                span= character.mana + ' / ' + character.max_mana
+              each stat in allocatableAttributes
+                li.list-group-item.bg-dark.d-flex.justify-content-between
+                  span.text-capitalize= stat
+                  span= character[stat]
+              li.list-group-item.bg-dark.d-flex.justify-content-between
+                span Gold
+                span= character.gold
+
+      .col-md-6
+        .card.bg-dark.border-secondary
+          .card-body
+            h2.h5.card-title Spend Attribute Points
+            p.text-muted
+              strong= character.attribute_points
+              |  unspent point#{character.attribute_points === 1 ? '' : 's'}
+
+            if character.attribute_points > 0
+              form(method="post" action="/character/attributes")
+                .mb-3
+                  label.form-label(for="stat") Put one point into
+                  select#stat.form-select(name="stat")
+                    each stat in allocatableAttributes
+                      option(value=stat)= stat
+                button.btn.btn-success(type="submit") Allocate
+            else
+              p.text-muted.fst-italic Earn more by leveling up (Checkpoint 5).
+
+    .mt-4
+      a.btn.btn-outline-light(href="/") Return to Menu
