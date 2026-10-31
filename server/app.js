@@ -10,6 +10,7 @@ import { db } from './db/connection.js'; // creates/verifies the database on sta
 import { hashPassword, verifyPassword, passwordRequirementFailures } from './utils/password.js';
 import { RACES, CLASSES, isValidRace, isValidClass, computeStartingStats, STARTING_ATTRIBUTE_POINTS } from './game/characterCreation.js';
 import { spendAttributePoint, ALLOCATABLE_ATTRIBUTES } from './game/attributePoints.js';
+import { resolveCommand } from './game/commandParser.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -294,6 +295,76 @@ export function createApp() {
         `).all(character.id).reverse();
 
         response.render('adventure', { title: character.name, character, room, exits, roomItems, monster, inventory, log, error: null });
+    });
+
+    app.post('/character/adventure/command', (request, response) => {
+        if (!request.session.characterId) {
+            return response.redirect('/character/new');
+        }
+
+        const character = db.prepare('SELECT * FROM characters WHERE id = ?').get(request.session.characterId);
+        if (!character) {
+            request.session.characterId = null;
+            return response.redirect('/character/new');
+        }
+        if (!character.current_room_id) {
+            // No room to act in yet -- the Adventure GET route's own guard
+            // handles assigning one (unseeded db, pre-Checkpoint-3 character),
+            // so just send the player back there instead of duplicating that.
+            return response.redirect('/character/adventure');
+        }
+
+        const rawCommand = (request.body.command || '').trim();
+        if (!rawCommand) {
+            // Nothing typed -- nothing to log, just go back.
+            return response.redirect('/character/adventure');
+        }
+
+        const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(character.current_room_id);
+        const exits = db.prepare('SELECT direction, destination_room_id FROM room_exits WHERE room_id = ?').all(room.id);
+        const roomItems = db.prepare(`
+            SELECT ri.id AS roomItemId, ri.item_id AS itemId, i.name, ri.quantity
+            FROM room_items ri JOIN items i ON i.id = ri.item_id
+            WHERE ri.room_id = ?
+        `).all(room.id);
+        const monster = room.monster_id
+            ? db.prepare('SELECT id, name FROM monsters WHERE id = ?').get(room.monster_id)
+            : null;
+        const inventory = db.prepare(`
+            SELECT ci.item_id AS itemId, i.name, ci.quantity
+            FROM character_items ci JOIN items i ON i.id = ci.item_id
+            WHERE ci.character_id = ?
+        `).all(character.id);
+
+        const { response: responseText, effects } = resolveCommand(rawCommand, { room, exits, roomItems, monster, inventory });
+
+        for (const effect of effects) {
+            if (effect.type === 'move') {
+                db.prepare("UPDATE characters SET current_room_id = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?")
+                    .run(effect.destinationRoomId, character.id);
+            } else if (effect.type === 'take') {
+                const roomItemRow = db.prepare('SELECT quantity FROM room_items WHERE id = ?').get(effect.roomItemId);
+                if (roomItemRow.quantity > 1) {
+                    db.prepare('UPDATE room_items SET quantity = quantity - 1 WHERE id = ?').run(effect.roomItemId);
+                } else {
+                    db.prepare('DELETE FROM room_items WHERE id = ?').run(effect.roomItemId);
+                }
+
+                const existing = db.prepare('SELECT id, quantity FROM character_items WHERE character_id = ? AND item_id = ?')
+                    .get(character.id, effect.itemId);
+                if (existing) {
+                    db.prepare('UPDATE character_items SET quantity = quantity + 1 WHERE id = ?').run(existing.id);
+                } else {
+                    db.prepare('INSERT INTO character_items (character_id, item_id, quantity, is_equipped) VALUES (?, ?, 1, 0)')
+                        .run(character.id, effect.itemId);
+                }
+            }
+        }
+
+        db.prepare('INSERT INTO command_log (character_id, raw_command, response_text) VALUES (?, ?, ?)')
+            .run(character.id, rawCommand, responseText);
+
+        response.redirect('/character/adventure');
     });
 
     app.get('/account', (request, response) => {
