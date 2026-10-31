@@ -7,10 +7,11 @@ block content
 
     .d-grid.gap-2.col-6.col-md-4.mx-auto.mt-4
       a.btn.btn-success.btn-lg(href="/character/new") New Game
-      button.btn.btn-outline-light.btn-lg(disabled title="Coming in Checkpoint 3") Continue
       if hasRun
+        a.btn.btn-outline-light.btn-lg(href="/character/adventure") Continue
         a.btn.btn-outline-light.btn-lg(href="/character") Character
       else
+        button.btn.btn-outline-light.btn-lg(disabled title="Unlocks once a run exists") Continue
         button.btn.btn-outline-light.btn-lg(disabled title="Unlocks once a run exists") Character
       button.btn.btn-outline-secondary(disabled title="Coming in a later checkpoint") Dictionary
       button.btn.btn-outline-secondary(disabled title="Coming in a later checkpoint") Leaderboard

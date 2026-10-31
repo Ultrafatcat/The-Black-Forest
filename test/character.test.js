@@ -2,7 +2,8 @@
 //
 // Integration tests for Character Creation and the Character Sheet
 // (Checkpoint 2). Character Creation works for guests and logged-in players
-// alike -- see the Menu Page section of the spec.
+// alike -- see the Menu Page section of the spec. Since Checkpoint 3, a new
+// character lands on the Adventure page instead of the Character Sheet.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,7 +24,7 @@ test('GET /character/new renders the Character Creation form', async () => {
     assert.match(response.text, /Character Creation/);
 });
 
-test('creating a character as a guest redirects into the Character Sheet and persists the row', async () => {
+test('creating a character as a guest redirects into the Adventure page and persists the row', async () => {
     const app = createApp();
     const agent = request.agent(app);
 
@@ -32,7 +33,7 @@ test('creating a character as a guest redirects into the Character Sheet and per
         .type('form')
         .send({ name: 'Rowan', race: 'Elf', class: 'Mage' });
     assert.equal(created.status, 302);
-    assert.equal(created.headers.location, '/character');
+    assert.equal(created.headers.location, '/character/adventure');
 
     const row = db.prepare('SELECT * FROM characters WHERE name = ?').get('Rowan');
     assert.ok(row, 'character row should exist');

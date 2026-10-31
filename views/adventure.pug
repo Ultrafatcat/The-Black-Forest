@@ -1,0 +1,63 @@
+extends layout
+
+block content
+  .py-4
+    if error
+      .alert.alert-danger= error
+    else
+      h1.mb-3= character.name
+
+      .row.g-4
+        .col-md-8
+          .card.bg-dark.border-secondary.mb-3
+            .card-body
+              h2.h5.card-title= room.name
+              p.mb-2= room.description
+              if roomItems.length > 0
+                p.mb-1.text-muted You see: #{roomItems.map(i => i.name).join(', ')}.
+              if monster
+                p.mb-1.text-warning A #{monster.name} is here.
+              if exits.length > 0
+                p.mb-0.text-muted Exits: #{exits.map(e => e.direction).join(', ')}.
+              else
+                p.mb-0.text-muted There are no exits from here.
+
+          .card.bg-dark.border-secondary.mb-3
+            .card-body
+              if log.length === 0
+                p.text-muted.fst-italic.mb-0 Nothing typed yet. LOOK is always a safe place to start.
+              else
+                each entry in log
+                  .mb-3
+                    p.text-muted.small.mb-1 &gt; #{entry.raw_command}
+                    p.mb-0= entry.response_text
+
+          form.d-flex.gap-2(method="post" action="/character/adventure/command")
+            input.form-control(type="text" name="command" placeholder="Type a command..." autocomplete="off" autofocus)
+            button.btn.btn-success(type="submit") Send
+
+        .col-md-4
+          .card.bg-dark.border-secondary
+            .card-body
+              h2.h5.card-title Stats
+              ul.list-group.list-group-flush
+                li.list-group-item.bg-dark.d-flex.justify-content-between
+                  span Health
+                  span= character.health + ' / ' + character.max_health
+                li.list-group-item.bg-dark.d-flex.justify-content-between
+                  span Mana
+                  span= character.mana + ' / ' + character.max_mana
+                li.list-group-item.bg-dark.d-flex.justify-content-between
+                  span Level
+                  span= character.level
+                li.list-group-item.bg-dark.d-flex.justify-content-between
+                  span Gold
+                  span= character.gold
+
+      .d-flex.flex-wrap.gap-2.mt-4
+        button.btn.btn-outline-light(disabled title="Coming in Checkpoint 4") Inventory
+        a.btn.btn-outline-light(href="/") Menu
+        button.btn.btn-outline-light(disabled title="Progress saves automatically") Save
+        button.btn.btn-outline-light(disabled title="Coming later in Checkpoint 3") Dictionary
+        button.btn.btn-outline-light(disabled title="Coming in a later checkpoint") Settings
+        button.btn.btn-outline-light(disabled title="Coming in a later checkpoint") Restart

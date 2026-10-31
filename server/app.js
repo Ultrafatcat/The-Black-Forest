@@ -164,25 +164,27 @@ export function createApp() {
         // guest and logged-in play key off of from here on.
         const userId = request.session.user ? request.session.user.id : null;
 
+        // By convention the lowest-id room (Forest Clearing) is where every
+        // new character spawns -- see the comment at the top of seed.js.
+        const startingRoom = db.prepare('SELECT id FROM rooms ORDER BY id LIMIT 1').get();
+
         const result = db.prepare(`
             INSERT INTO characters (
                 user_id, name, race, class, health, max_health, mana, max_mana,
                 strength, stamina, agility, dexterity, resilience, intelligence, luck,
-                attribute_points
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                attribute_points, current_room_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             userId, name.trim(), race, characterClass,
             stats.maxHealth, stats.maxHealth, stats.maxMana, stats.maxMana,
             stats.strength, stats.stamina, stats.agility, stats.dexterity,
             stats.resilience, stats.intelligence, stats.luck,
-            STARTING_ATTRIBUTE_POINTS,
+            STARTING_ATTRIBUTE_POINTS, startingRoom ? startingRoom.id : null,
         );
 
         request.session.characterId = Number(result.lastInsertRowid);
 
-        // The Adventure page doesn't exist until Checkpoint 3, so the
-        // Character Sheet is where a new run lands for now.
-        response.redirect('/character');
+        response.redirect('/character/adventure');
     });
 
     app.get('/character', (request, response) => {
@@ -225,7 +227,76 @@ export function createApp() {
         response.redirect('/character');
     });
 
-        app.get('/account', (request, response) => {
+    app.get('/character/adventure', (request, response) => {
+        if (!request.session.characterId) {
+            return response.redirect('/character/new');
+        }
+
+        let character = db.prepare('SELECT * FROM characters WHERE id = ?').get(request.session.characterId);
+        if (!character) {
+            request.session.characterId = null;
+            return response.redirect('/character/new');
+        }
+
+        // A character created before Checkpoint 3 (or any other way
+        // current_room_id ended up empty) gets dropped into the starting
+        // room now, rather than erroring out.
+        if (!character.current_room_id) {
+            const startingRoom = db.prepare('SELECT id FROM rooms ORDER BY id LIMIT 1').get();
+            if (startingRoom) {
+                db.prepare('UPDATE characters SET current_room_id = ? WHERE id = ?').run(startingRoom.id, character.id);
+                character = db.prepare('SELECT * FROM characters WHERE id = ?').get(character.id);
+            }
+        }
+
+        const room = character.current_room_id
+            ? db.prepare('SELECT * FROM rooms WHERE id = ?').get(character.current_room_id)
+            : null;
+
+        if (!room) {
+            // No rooms seeded at all -- shouldn't happen past `npm run seed`,
+            // but fail with a readable message instead of crashing.
+            return response.status(500).render('adventure', {
+                title: character.name,
+                character,
+                room: null,
+                exits: [],
+                roomItems: [],
+                monster: null,
+                inventory: [],
+                log: [],
+                error: 'No rooms are seeded yet. Run "npm run seed" and reload.',
+            });
+        }
+
+        const exits = db.prepare('SELECT direction, destination_room_id FROM room_exits WHERE room_id = ?').all(room.id);
+
+        const roomItems = db.prepare(`
+            SELECT ri.id AS roomItemId, ri.item_id AS itemId, i.name, ri.quantity
+            FROM room_items ri JOIN items i ON i.id = ri.item_id
+            WHERE ri.room_id = ?
+        `).all(room.id);
+
+        const monster = room.monster_id
+            ? db.prepare('SELECT id, name FROM monsters WHERE id = ?').get(room.monster_id)
+            : null;
+
+        const inventory = db.prepare(`
+            SELECT ci.item_id AS itemId, i.name, ci.quantity
+            FROM character_items ci JOIN items i ON i.id = ci.item_id
+            WHERE ci.character_id = ?
+        `).all(character.id);
+
+        // Most recent 100 commands, oldest first so the log reads top to bottom.
+        const log = db.prepare(`
+            SELECT raw_command, response_text, created_at FROM command_log
+            WHERE character_id = ? ORDER BY id DESC LIMIT 100
+        `).all(character.id).reverse();
+
+        response.render('adventure', { title: character.name, character, room, exits, roomItems, monster, inventory, log, error: null });
+    });
+
+    app.get('/account', (request, response) => {
         if (!request.session.user) {
             return response.redirect('/login');
         }
