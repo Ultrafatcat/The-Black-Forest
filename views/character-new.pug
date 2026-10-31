@@ -5,6 +5,11 @@ block content
     h1.mb-1.text-center Character Creation
     p.text-muted.text-center.mb-4 Choose a name, a race, and a class. There's no going back from this page &mdash; submitting takes you straight into the forest.
 
+    if hasExistingRun
+      .alert.alert-warning.col-10.col-sm-6.col-md-5.mx-auto
+        | You already have an adventure in progress. Starting a new one will abandon your current character --
+        a.alert-link(href="/character/adventure")  jump back into it instead?
+
     if error
       .alert.alert-danger.col-10.col-sm-6.col-md-5.mx-auto= error
 

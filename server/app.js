@@ -42,6 +42,13 @@ export function createApp() {
         next();
     });
 
+    // True when the session points at a character row that still exists --
+    // used to warn before New Game quietly overwrites a run in progress.
+    function hasExistingRun(request) {
+        return Boolean(request.session.characterId
+            && db.prepare('SELECT 1 FROM characters WHERE id = ?').get(request.session.characterId));
+    }
+
     app.get('/', (request, response) => {
         // A "run" is just a character the session points at -- true for a
         // guest (characterId only) and for a logged-in player alike, so
@@ -118,6 +125,16 @@ export function createApp() {
         }
 
         request.session.user = { id: row.id, username: row.username, nickname: row.nickname };
+
+        // Resume this account's existing character (if it has one) instead
+        // of leaving the session pointed at nothing -- without this, Continue
+        // and Character stay locked until the player hits New Game again,
+        // which creates a second, orphaned character row for the account.
+        const existingCharacter = db.prepare('SELECT id FROM characters WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(row.id);
+        if (existingCharacter) {
+            request.session.characterId = existingCharacter.id;
+        }
+
         response.redirect('/');
     });
 
@@ -134,6 +151,7 @@ export function createApp() {
             name: '',
             race: RACES[0],
             characterClass: CLASSES[0],
+            hasExistingRun: hasExistingRun(request),
         });
     });
 
@@ -148,6 +166,7 @@ export function createApp() {
             name: name || '',
             race: isValidRace(race) ? race : RACES[0],
             characterClass: isValidClass(characterClass) ? characterClass : CLASSES[0],
+            hasExistingRun: hasExistingRun(request),
         });
 
         if (!name || !name.trim()) {
