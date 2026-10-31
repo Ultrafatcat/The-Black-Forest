@@ -11,6 +11,7 @@ import { hashPassword, verifyPassword, passwordRequirementFailures } from './uti
 import { RACES, CLASSES, isValidRace, isValidClass, computeStartingStats, STARTING_ATTRIBUTE_POINTS } from './game/characterCreation.js';
 import { spendAttributePoint, ALLOCATABLE_ATTRIBUTES } from './game/attributePoints.js';
 import { resolveCommand } from './game/commandParser.js';
+import { DICTIONARY_ENTRIES } from './game/dictionary.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -398,6 +399,12 @@ export function createApp() {
 
         const account = db.prepare('SELECT username, nickname, is_public FROM users WHERE id = ?').get(request.session.user.id);
         response.render('account', { title: 'Account', account, error: null, saved: true });
+    });
+
+    app.get('/dictionary', (request, response) => {
+        // Reachable regardless of login or run state, like the Menu Page
+        // section of the spec describes -- no session guard here.
+        response.render('dictionary', { title: 'Dictionary', entries: DICTIONARY_ENTRIES });
     });
 
     app.get('/health', (request, response) => {
