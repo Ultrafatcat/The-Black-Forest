@@ -12,6 +12,7 @@ import { RACES, CLASSES, isValidRace, isValidClass, computeStartingStats, STARTI
 import { spendAttributePoint, ALLOCATABLE_ATTRIBUTES } from './game/attributePoints.js';
 import { resolveCommand } from './game/commandParser.js';
 import { DICTIONARY_ENTRIES } from './game/dictionary.js';
+import { resolveEquip, resolveUse } from './game/inventory.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -407,6 +408,74 @@ export function createApp() {
         `).all(character.id);
 
         response.render('inventory', { title: 'Inventory', character, inventory });
+    });
+
+    // Shared by the three inventory action routes below: loads the
+    // character_item row (joined with its item) and checks it actually
+    // belongs to this session's character, so one player can't equip or
+    // drop a row by guessing another character's characterItemId.
+    function loadOwnedCharacterItem(characterId, characterItemId) {
+        return db.prepare(`
+            SELECT ci.id AS characterItemId, ci.quantity, ci.is_equipped,
+                   i.id AS itemId, i.name, i.item_type, i.heal_amount
+            FROM character_items ci JOIN items i ON i.id = ci.item_id
+            WHERE ci.id = ? AND ci.character_id = ?
+        `).get(characterItemId, characterId);
+    }
+
+    app.post('/character/inventory/equip', (request, response) => {
+        if (!request.session.characterId) {
+            return response.redirect('/character/new');
+        }
+
+        const characterItem = loadOwnedCharacterItem(request.session.characterId, request.body.characterItemId);
+        if (characterItem) {
+            const result = resolveEquip(characterItem, characterItem);
+            if (result.ok) {
+                db.prepare('UPDATE character_items SET is_equipped = ? WHERE id = ?')
+                    .run(result.isEquipped, characterItem.characterItemId);
+            }
+        }
+
+        response.redirect('/character/inventory');
+    });
+
+    app.post('/character/inventory/use', (request, response) => {
+        if (!request.session.characterId) {
+            return response.redirect('/character/new');
+        }
+
+        const character = db.prepare('SELECT * FROM characters WHERE id = ?').get(request.session.characterId);
+        const characterItem = character && loadOwnedCharacterItem(character.id, request.body.characterItemId);
+        if (character && characterItem) {
+            const result = resolveUse(character, characterItem, characterItem);
+            if (result.ok) {
+                db.prepare("UPDATE characters SET health = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?")
+                    .run(result.newHealth, character.id);
+
+                if (result.removeRow) {
+                    db.prepare('DELETE FROM character_items WHERE id = ?').run(characterItem.characterItemId);
+                } else {
+                    db.prepare('UPDATE character_items SET quantity = ? WHERE id = ?')
+                        .run(result.newQuantity, characterItem.characterItemId);
+                }
+            }
+        }
+
+        response.redirect('/character/inventory');
+    });
+
+    app.post('/character/inventory/drop', (request, response) => {
+        if (!request.session.characterId) {
+            return response.redirect('/character/new');
+        }
+
+        const characterItem = loadOwnedCharacterItem(request.session.characterId, request.body.characterItemId);
+        if (characterItem) {
+            db.prepare('DELETE FROM character_items WHERE id = ?').run(characterItem.characterItemId);
+        }
+
+        response.redirect('/character/inventory');
     });
 
     app.get('/account', (request, response) => {
