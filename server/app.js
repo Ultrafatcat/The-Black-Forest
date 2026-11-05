@@ -291,7 +291,7 @@ export function createApp() {
             });
         }
 
-        const exits = db.prepare('SELECT direction, destination_room_id FROM room_exits WHERE room_id = ?').all(room.id);
+        const exits = db.prepare('SELECT direction, destination_room_id, hint FROM room_exits WHERE room_id = ?').all(room.id);
 
         const roomItems = db.prepare(`
             SELECT ri.id AS roomItemId, ri.item_id AS itemId, i.name, ri.quantity
@@ -342,7 +342,7 @@ export function createApp() {
         }
 
         const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(character.current_room_id);
-        const exits = db.prepare('SELECT direction, destination_room_id FROM room_exits WHERE room_id = ?').all(room.id);
+        const exits = db.prepare('SELECT direction, destination_room_id, hint FROM room_exits WHERE room_id = ?').all(room.id);
         const roomItems = db.prepare(`
             SELECT ri.id AS roomItemId, ri.item_id AS itemId, i.name, ri.quantity
             FROM room_items ri JOIN items i ON i.id = ri.item_id

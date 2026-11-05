@@ -34,7 +34,7 @@ export function tokenize(rawInput) {
 
 // context shape (all plain data -- no db access here):
 //   room:      { id, name, description }
-//   exits:     [{ direction, destination_room_id }]
+//   exits:     [{ direction, destination_room_id, hint }]
 //   roomItems: [{ roomItemId, itemId, name, quantity }]
 //   monster:   { id, name } | null
 //   inventory: [{ itemId, name, quantity }]
@@ -68,10 +68,15 @@ export function resolveCommand(rawInput, context) {
 
 function resolveGo(target, { exits }) {
     if (!target) {
-        return { response: 'Go where?', effects: [] };
+        return { response: 'Go where? Try GO WHERE for a hint about what lies in each direction.', effects: [] };
     }
 
     const direction = target.toLowerCase();
+
+    if (direction === 'where') {
+        return resolveGoWhere(exits);
+    }
+
     const exit = exits.find((e) => e.direction.toLowerCase() === direction);
 
     if (!exit) {
@@ -82,6 +87,29 @@ function resolveGo(target, { exits }) {
         response: `You head ${direction}.`,
         effects: [{ type: 'move', destinationRoomId: exit.destination_room_id }],
     };
+}
+
+// GO WHERE: a closer look at each exit than LOOK gives -- LOOK just lists
+// the directions, this gives a line of flavor per direction to help decide
+// where to go, rather than picking a direction at random. Falls back to a
+// generic line for any exit seeded without a hint (shouldn't happen with
+// the current map, but keeps this from ever printing "undefined").
+function resolveGoWhere(exits) {
+    if (exits.length === 0) {
+        return { response: "There's nowhere to go from here.", effects: [] };
+    }
+
+    const lines = exits.map((exit) => {
+        const direction = capitalize(exit.direction);
+        const hint = exit.hint || `Something lies to the ${exit.direction}, unremarked.`;
+        return `To the ${direction}: ${hint}`;
+    });
+
+    return { response: lines.join(' '), effects: [] };
+}
+
+function capitalize(word) {
+    return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 function resolveLook({ room, roomItems, monster, exits }) {

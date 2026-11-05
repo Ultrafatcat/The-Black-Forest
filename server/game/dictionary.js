@@ -9,6 +9,7 @@
 
 export const DICTIONARY_ENTRIES = [
     { verb: 'GO', syntax: 'GO <direction>', description: 'Move to a connected room, e.g. GO NORTH.', available: true },
+    { verb: 'GO WHERE', syntax: 'GO WHERE', description: 'Get a hint about what lies in each direction, instead of just the exit list LOOK gives.', available: true },
     { verb: 'LOOK', syntax: 'LOOK', description: "Describe the room again: what's here and which exits lead out.", available: true },
     { verb: 'TAKE', syntax: 'TAKE <item>', description: 'Pick up an item lying in the room.', available: true },
     { verb: 'INVENTORY', syntax: 'INVENTORY', description: "List what you're carrying.", available: true },
