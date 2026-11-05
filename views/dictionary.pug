@@ -16,4 +16,4 @@ block content
             p.mb-0.mt-1.text-muted= entry.description
 
     .mt-4
-      a.btn.btn-outline-light(href="/") Return to Menu
+      a.btn.btn-outline-light(href=returnTo)= returnTo === '/character/adventure' ? 'Return to Adventure' : 'Return to Menu'

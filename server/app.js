@@ -514,7 +514,13 @@ export function createApp() {
     app.get('/dictionary', (request, response) => {
         // Reachable regardless of login or run state, like the Menu Page
         // section of the spec describes -- no session guard here.
-        response.render('dictionary', { title: 'Dictionary', entries: DICTIONARY_ENTRIES });
+        //
+        // ?from=adventure sends the "back" button to the Adventure page
+        // instead of the Menu -- anything else (including it being absent)
+        // falls back to Menu, which is also where a bare /dictionary visit
+        // (typed directly, bookmarked, etc.) should land.
+        const returnTo = request.query.from === 'adventure' ? '/character/adventure' : '/';
+        response.render('dictionary', { title: 'Dictionary', entries: DICTIONARY_ENTRIES, returnTo });
     });
 
     app.get('/health', (request, response) => {
