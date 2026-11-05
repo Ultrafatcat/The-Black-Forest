@@ -69,16 +69,16 @@ if (count === 0) {
     ).lastInsertRowid;
 
     const insertExit = db.prepare(
-        'INSERT INTO room_exits (room_id, direction, destination_room_id) VALUES (?, ?, ?)'
+        'INSERT INTO room_exits (room_id, direction, destination_room_id, hint) VALUES (?, ?, ?, ?)'
     );
-    insertExit.run(clearingId, 'north', denId);
-    insertExit.run(denId, 'south', clearingId);
-    insertExit.run(clearingId, 'east', hollowId);
-    insertExit.run(hollowId, 'west', clearingId);
-    insertExit.run(hollowId, 'north', bridgeId);
-    insertExit.run(bridgeId, 'south', hollowId);
-    insertExit.run(bridgeId, 'east', shrineId);
-    insertExit.run(shrineId, 'west', bridgeId);
+    insertExit.run(clearingId, 'north', denId, 'Claw marks lead off into the trees, and something growls just out of earshot.');
+    insertExit.run(denId, 'south', clearingId, 'Open light and quiet call you back toward the clearing.');
+    insertExit.run(clearingId, 'east', hollowId, 'Soft moss and a deep hush draw you toward the eastern treeline.');
+    insertExit.run(hollowId, 'west', clearingId, 'Pale light marks the way back to the clearing.');
+    insertExit.run(hollowId, 'north', bridgeId, 'The moss thins ahead, and you can just make out running water below.');
+    insertExit.run(bridgeId, 'south', hollowId, 'Soft ground and quiet moss wait back the way you came.');
+    insertExit.run(bridgeId, 'east', shrineId, 'Old stonework rises out of the fog on the far side of the ravine.');
+    insertExit.run(shrineId, 'west', bridgeId, 'The warped bridge creaks faintly back toward the hollow.');
 
     const insertRoomItem = db.prepare(
         'INSERT INTO room_items (room_id, item_id, quantity) VALUES (?, ?, ?)'
@@ -91,4 +91,27 @@ if (count === 0) {
     console.log('Seeded starter rooms, items, and a monster.');
 } else {
     console.log('Rooms already seeded, skipping.');
+}
+
+// Backfills GO WHERE flavor text onto exits seeded before Checkpoint 4
+// added the hint column -- unlike the block above, this runs every time
+// (cheap: 8 rows, matched by room name + direction) so a database seeded
+// under Checkpoint 3 still gets hints without a full reseed.
+const backfillHints = [
+    ['Forest Clearing', 'north', 'Claw marks lead off into the trees, and something growls just out of earshot.'],
+    ["Wolf's Den", 'south', 'Open light and quiet call you back toward the clearing.'],
+    ['Forest Clearing', 'east', 'Soft moss and a deep hush draw you toward the eastern treeline.'],
+    ['Mossy Hollow', 'west', 'Pale light marks the way back to the clearing.'],
+    ['Mossy Hollow', 'north', 'The moss thins ahead, and you can just make out running water below.'],
+    ['Crooked Bridge', 'south', 'Soft ground and quiet moss wait back the way you came.'],
+    ['Crooked Bridge', 'east', 'Old stonework rises out of the fog on the far side of the ravine.'],
+    ['Sunken Shrine', 'west', 'The warped bridge creaks faintly back toward the hollow.'],
+];
+const updateHint = db.prepare(`
+    UPDATE room_exits SET hint = ?
+    WHERE direction = ? AND hint IS NULL
+      AND room_id = (SELECT id FROM rooms WHERE name = ?)
+`);
+for (const [roomName, direction, hint] of backfillHints) {
+    updateHint.run(hint, direction, roomName);
 }

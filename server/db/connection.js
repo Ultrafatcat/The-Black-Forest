@@ -21,3 +21,8 @@ db.exec('PRAGMA journal_mode = WAL');
 
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 db.exec(schema);
+
+const roomExitColumns = db.prepare('PRAGMA table_info(room_exits)').all();
+if (!roomExitColumns.some((column) => column.name === 'hint')) {
+    db.exec('ALTER TABLE room_exits ADD COLUMN hint TEXT');
+}

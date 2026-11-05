@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS room_exits (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     room_id             INTEGER NOT NULL REFERENCES rooms(id),
     direction           TEXT NOT NULL,
-    destination_room_id INTEGER NOT NULL REFERENCES rooms(id)
+    destination_room_id INTEGER NOT NULL REFERENCES rooms(id),
+    hint                TEXT -- flavor text for GO WHERE, e.g. "A strange darkness..."
 );
 
 CREATE TABLE IF NOT EXISTS room_items (
