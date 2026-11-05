@@ -115,3 +115,46 @@ const updateHint = db.prepare(`
 for (const [roomName, direction, hint] of backfillHints) {
     updateHint.run(hint, direction, roomName);
 }
+
+// Backfills starter items and their room placements the same way --
+// handles two cases at once: an item added after a database was already
+// seeded (Worn Leather Vest, added in Checkpoint 4, never existed on a
+// database seeded under Checkpoint 3), and a starter item that existed but
+// has since been picked up by some character, leaving its room_items row
+// gone. Both get restocked on every start -- this script runs on every
+// deploy and every reboot (see deploy/black-forest.service's
+// ExecStartPre), so a starter item taken by one playthrough reappears the
+// next time the service restarts rather than staying gone forever.
+const starterItems = [
+    ['Rusted Dagger', 'weapon', 2, 0, 0, 0, 0, 'Pitted and dull, but it still has an edge.'],
+    ['Wild Mushroom', 'consumable', 0, 0, 5, 0, 0, 'Pale and faintly glowing. Smells faintly of rain.'],
+    ['Tarnished Locket', 'treasure', 0, 0, 0, 1, 10, 'A small locket, the portrait inside too worn to make out.'],
+    ['Worn Leather Vest', 'armor', 0, 2, 0, 0, 0, 'Cracked and stiff with age, but it still turns a blade.'],
+];
+const insertMissingItem = db.prepare(`
+    INSERT INTO items (name, item_type, attack_bonus, defense_bonus, heal_amount, is_treasure, point_value, description)
+    SELECT ?, ?, ?, ?, ?, ?, ?, ?
+    WHERE NOT EXISTS (SELECT 1 FROM items WHERE name = ?)
+`);
+for (const item of starterItems) {
+    insertMissingItem.run(...item, item[0]);
+}
+
+const starterPlacements = [
+    ['Mossy Hollow', 'Rusted Dagger', 1],
+    ['Mossy Hollow', 'Wild Mushroom', 1],
+    ['Sunken Shrine', 'Tarnished Locket', 1],
+    ["Wolf's Den", 'Worn Leather Vest', 1],
+];
+const restockRoomItem = db.prepare(`
+    INSERT INTO room_items (room_id, item_id, quantity)
+    SELECT r.id, i.id, ?
+    FROM rooms r, items i
+    WHERE r.name = ? AND i.name = ?
+      AND NOT EXISTS (
+          SELECT 1 FROM room_items ri WHERE ri.room_id = r.id AND ri.item_id = i.id
+      )
+`);
+for (const [roomName, itemName, quantity] of starterPlacements) {
+    restockRoomItem.run(quantity, roomName, itemName);
+}
