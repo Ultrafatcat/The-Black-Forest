@@ -387,6 +387,28 @@ export function createApp() {
         response.redirect('/character/adventure');
     });
 
+    app.get('/character/inventory', (request, response) => {
+        if (!request.session.characterId) {
+            return response.redirect('/character/new');
+        }
+
+        const character = db.prepare('SELECT * FROM characters WHERE id = ?').get(request.session.characterId);
+        if (!character) {
+            request.session.characterId = null;
+            return response.redirect('/character/new');
+        }
+
+        const inventory = db.prepare(`
+            SELECT ci.id AS characterItemId, i.id AS itemId, i.name, i.item_type, i.description,
+                   i.attack_bonus, i.defense_bonus, i.heal_amount, ci.quantity, ci.is_equipped
+            FROM character_items ci JOIN items i ON i.id = ci.item_id
+            WHERE ci.character_id = ?
+            ORDER BY i.name
+        `).all(character.id);
+
+        response.render('inventory', { title: 'Inventory', character, inventory });
+    });
+
     app.get('/account', (request, response) => {
         if (!request.session.user) {
             return response.redirect('/login');

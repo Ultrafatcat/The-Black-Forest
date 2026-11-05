@@ -1,0 +1,52 @@
+extends layout
+
+block content
+  .py-4
+    .d-flex.justify-content-between.align-items-start.flex-wrap.gap-2.mb-3
+      div
+        h1.mb-0 Inventory
+        p.text-muted.mb-0= character.name + "'s pack"
+
+    if inventory.length === 0
+      .card.bg-dark.border-secondary
+        .card-body
+          p.text-muted.fst-italic.mb-0 Nothing here yet -- TAKE something while you're out in the forest.
+    else
+      .row.g-3
+        each item in inventory
+          .col-md-6
+            .card.bg-dark.border-secondary.h-100
+              .card-body
+                .d-flex.justify-content-between.align-items-start
+                  h2.h5.card-title.mb-1= item.name
+                  if item.is_equipped
+                    span.badge.text-bg-success Equipped
+                p.text-muted.small.text-capitalize.mb-2= item.item_type + ' · Qty ' + item.quantity
+                if item.description
+                  p.mb-2= item.description
+                if item.item_type === 'weapon' || item.item_type === 'armor'
+                  p.text-muted.small.mb-2
+                    if item.attack_bonus > 0
+                      span= '+' + item.attack_bonus + ' attack '
+                    if item.defense_bonus > 0
+                      span= '+' + item.defense_bonus + ' defense'
+                if item.item_type === 'consumable'
+                  p.text-muted.small.mb-2= 'Heals ' + item.heal_amount + ' HP'
+                if item.item_type === 'treasure'
+                  p.text-muted.small.mb-2 Worth keeping -- not for use or equipping.
+
+                .d-flex.gap-2.flex-wrap
+                  if item.item_type === 'weapon' || item.item_type === 'armor'
+                    form(method="post" action="/character/inventory/equip")
+                      input(type="hidden" name="characterItemId" value=item.characterItemId)
+                      button.btn.btn-sm.btn-outline-light(type="submit")= item.is_equipped ? 'Unequip' : 'Equip'
+                  if item.item_type === 'consumable'
+                    form(method="post" action="/character/inventory/use")
+                      input(type="hidden" name="characterItemId" value=item.characterItemId)
+                      button.btn.btn-sm.btn-success(type="submit") Use
+                  form(method="post" action="/character/inventory/drop")
+                    input(type="hidden" name="characterItemId" value=item.characterItemId)
+                    button.btn.btn-sm.btn-outline-danger(type="submit") Drop
+
+    .mt-4
+      a.btn.btn-outline-light(href="/character/adventure") Return to Adventure
