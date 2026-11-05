@@ -32,6 +32,10 @@ if (count === 0) {
         'Tarnished Locket', 'treasure', 0, 0, 0, 1, 10,
         'A small locket, the portrait inside too worn to make out.'
     ).lastInsertRowid;
+    const vestId = insertItem.run(
+        'Worn Leather Vest', 'armor', 0, 2, 0, 0, 0,
+        'Cracked and stiff with age, but it still turns a blade.'
+    ).lastInsertRowid;
 
     const insertRoom = db.prepare(
         'INSERT INTO rooms (name, description, monster_id) VALUES (?, ?, ?)'
@@ -82,6 +86,7 @@ if (count === 0) {
     insertRoomItem.run(hollowId, daggerId, 1);
     insertRoomItem.run(hollowId, mushroomId, 1);
     insertRoomItem.run(shrineId, lockedId, 1);
+    insertRoomItem.run(denId, vestId, 1);
 
     console.log('Seeded starter rooms, items, and a monster.');
 } else {
