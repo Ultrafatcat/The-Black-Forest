@@ -297,7 +297,11 @@ export function createApp() {
             SELECT ri.id AS roomItemId, ri.item_id AS itemId, i.name, ri.quantity
             FROM room_items ri JOIN items i ON i.id = ri.item_id
             WHERE ri.room_id = ?
-        `).all(room.id);
+              AND NOT EXISTS (
+                  SELECT 1 FROM character_taken_room_items cti
+                  WHERE cti.room_item_id = ri.id AND cti.character_id = ?
+              )
+        `).all(room.id, character.id);
 
         const monster = room.monster_id
             ? db.prepare('SELECT id, name FROM monsters WHERE id = ?').get(room.monster_id)
@@ -347,7 +351,11 @@ export function createApp() {
             SELECT ri.id AS roomItemId, ri.item_id AS itemId, i.name, ri.quantity
             FROM room_items ri JOIN items i ON i.id = ri.item_id
             WHERE ri.room_id = ?
-        `).all(room.id);
+              AND NOT EXISTS (
+                  SELECT 1 FROM character_taken_room_items cti
+                  WHERE cti.room_item_id = ri.id AND cti.character_id = ?
+              )
+        `).all(room.id, character.id);
         const monster = room.monster_id
             ? db.prepare('SELECT id, name FROM monsters WHERE id = ?').get(room.monster_id)
             : null;
@@ -364,12 +372,12 @@ export function createApp() {
                 db.prepare("UPDATE characters SET current_room_id = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?")
                     .run(effect.destinationRoomId, character.id);
             } else if (effect.type === 'take') {
-                const roomItemRow = db.prepare('SELECT quantity FROM room_items WHERE id = ?').get(effect.roomItemId);
-                if (roomItemRow.quantity > 1) {
-                    db.prepare('UPDATE room_items SET quantity = quantity - 1 WHERE id = ?').run(effect.roomItemId);
-                } else {
-                    db.prepare('DELETE FROM room_items WHERE id = ?').run(effect.roomItemId);
-                }
+                // Records this character's own pickup rather than touching
+                // room_items -- room_items is shared, permanent world data,
+                // so another character (or this same player's next New
+                // Game) still finds the item here.
+                db.prepare('INSERT INTO character_taken_room_items (character_id, room_item_id) VALUES (?, ?)')
+                    .run(character.id, effect.roomItemId);
 
                 const existing = db.prepare('SELECT id, quantity FROM character_items WHERE character_id = ? AND item_id = ?')
                     .get(character.id, effect.itemId);

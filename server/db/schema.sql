@@ -94,6 +94,17 @@ CREATE TABLE IF NOT EXISTS character_items (
     is_equipped   INTEGER NOT NULL DEFAULT 0
 );
 
+-- Records that a specific character has already taken a specific room_items
+-- row. room_items itself is shared, permanent world data -- TAKE no longer
+-- deletes from it -- so each character's own TAKE history lives here
+-- instead, keeping one character's pickups from emptying the room for
+-- everyone else (or for that same player's next New Game).
+CREATE TABLE IF NOT EXISTS character_taken_room_items (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    character_id  INTEGER NOT NULL REFERENCES characters(id),
+    room_item_id  INTEGER NOT NULL REFERENCES room_items(id)
+);
+
 CREATE TABLE IF NOT EXISTS skills (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     name        TEXT NOT NULL,

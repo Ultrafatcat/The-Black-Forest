@@ -140,8 +140,16 @@ test('TAKE moves an item from the room into the character\'s inventory', async (
     const command = await agent.post('/character/adventure/command').type('form').send({ command: 'take rusted dagger' });
     assert.equal(command.status, 302);
 
+    // room_items is shared, permanent world data -- TAKE records this
+    // character's own pickup instead of deleting it, so the row itself is
+    // untouched (another character, or this same player's next New Game,
+    // still finds the dagger here).
     const roomItem = db.prepare('SELECT * FROM room_items WHERE room_id = ? AND item_id = ?').get(clearingId, daggerId);
-    assert.equal(roomItem, undefined); // only copy, so the row is gone, not just decremented
+    assert.ok(roomItem);
+
+    const takenRow = db.prepare('SELECT * FROM character_taken_room_items WHERE character_id = ? AND room_item_id = ?')
+        .get(character.id, roomItem.id);
+    assert.ok(takenRow);
 
     const inventoryRow = db.prepare('SELECT quantity FROM character_items WHERE character_id = ? AND item_id = ?')
         .get(character.id, daggerId);
@@ -149,6 +157,38 @@ test('TAKE moves an item from the room into the character\'s inventory', async (
 
     const logRow = db.prepare('SELECT response_text FROM command_log WHERE character_id = ?').get(character.id);
     assert.match(logRow.response_text, /take the Rusted Dagger/);
+});
+
+test('TAKE does not remove an item from another character\'s view of the room', async () => {
+    const { clearingId, daggerId } = seedTestWorld();
+    const app = createApp();
+    const { agent: firstAgent } = await createGuestCharacter(app, clearingId);
+    const { agent: secondAgent, character: secondCharacter } = await createGuestCharacter(app, clearingId);
+
+    await firstAgent.post('/character/adventure/command').type('form').send({ command: 'take rusted dagger' });
+
+    const page = await secondAgent.get('/character/adventure');
+    assert.match(page.text, /Rusted Dagger/); // still there for a character who hasn't taken it
+
+    const secondInventory = db.prepare('SELECT * FROM character_items WHERE character_id = ? AND item_id = ?')
+        .get(secondCharacter.id, daggerId);
+    assert.equal(secondInventory, undefined);
+});
+
+test('TAKE twice by the same character only logs the second attempt as not found', async () => {
+    const { clearingId, daggerId } = seedTestWorld();
+    const app = createApp();
+    const { agent, character } = await createGuestCharacter(app, clearingId);
+
+    await agent.post('/character/adventure/command').type('form').send({ command: 'take rusted dagger' });
+    await agent.post('/character/adventure/command').type('form').send({ command: 'take rusted dagger' });
+
+    const inventoryRow = db.prepare('SELECT quantity FROM character_items WHERE character_id = ? AND item_id = ?')
+        .get(character.id, daggerId);
+    assert.equal(inventoryRow.quantity, 1); // second TAKE didn't add a duplicate
+
+    const lastLog = db.prepare('SELECT response_text FROM command_log WHERE character_id = ? ORDER BY id DESC LIMIT 1').get(character.id);
+    assert.match(lastLog.response_text, /no rusted dagger here/i);
 });
 
 test('TAKE on an item that is not in the room leaves the database unchanged', async () => {
