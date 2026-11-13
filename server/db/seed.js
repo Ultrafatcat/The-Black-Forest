@@ -158,3 +158,29 @@ const restockRoomItem = db.prepare(`
 for (const [roomName, itemName, quantity] of starterPlacements) {
     restockRoomItem.run(quantity, roomName, itemName);
 }
+
+// Backfills Checkpoint 5's combat skills the same way as the starter items
+// above -- insert-if-missing by name, so this runs safely on every start
+// whether the database is brand new or was seeded under an earlier
+// checkpoint. One signature skill per class, plus three universal actions
+// (class NULL) every character can use regardless of class.
+const skills = [
+    // name,            class,      min_level, mana_cost, effect_type, power, description
+    ['Power Strike',   'Warrior',  1, 0, 'damage', 8,  'A heavy, two-handed blow aimed to end the fight quickly.'],
+    ['Piercing Shot',  'Archer',   1, 0, 'damage', 6,  "A well-aimed arrow that finds the gap in any guard."],
+    ['Firebolt',       'Mage',     1, 5, 'damage', 10, 'A roaring bolt of flame, costly to cast but devastating to land.'],
+    ['Smite',          'Paladin',  1, 3, 'damage', 7,  'A blow channeled with holy light, punishing anything that stands against you.'],
+    ["Nature's Wrath", 'Druid',    1, 4, 'damage', 7,  "Thorns and root-snarl erupt at your call, tearing into your foe."],
+    ['Sneak Attack',   'Rogue',    1, 0, 'damage', 9,  "A vicious strike aimed at the one moment an enemy's guard drops."],
+    ['Dodge',          null,       1, 0, 'utility', 0, 'Brace and sidestep, trading your own attack for a guaranteed miss.'],
+    ['Heal',           null,       1, 4, 'heal',    8, 'Draw on what strength you have left to mend your wounds mid-fight.'],
+    ['Run',            null,       1, 0, 'utility', 0, 'Break off the fight and put distance between you and your enemy.'],
+];
+const insertMissingSkill = db.prepare(`
+    INSERT INTO skills (name, class, min_level, mana_cost, effect_type, power, description)
+    SELECT ?, ?, ?, ?, ?, ?, ?
+    WHERE NOT EXISTS (SELECT 1 FROM skills WHERE name = ?)
+`);
+for (const skill of skills) {
+    insertMissingSkill.run(...skill, skill[0]);
+}
