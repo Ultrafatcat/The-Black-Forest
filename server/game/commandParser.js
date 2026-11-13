@@ -162,10 +162,11 @@ function resolveFight({ monster }) {
         return { response: "There's nothing here to fight.", effects: [] };
     }
 
-    // Combat itself (damage, HP, victory/defeat) is Checkpoint 5 -- for now
-    // FIGHT just acknowledges the monster is here and blocking the way.
+    // FIGHT only starts the encounter -- the route records it on the
+    // character and sends them to the Combat page, where every round is
+    // resolved (see server/game/combat.js).
     return {
-        response: `${withArticle(monster.name)} snarls and blocks your path. (Combat arrives in a later checkpoint.)`,
-        effects: [],
+        response: `You square up against ${withArticle(monster.name)}!`,
+        effects: [{ type: 'start_combat', monsterId: monster.id }],
     };
 }

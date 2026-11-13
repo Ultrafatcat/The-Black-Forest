@@ -200,8 +200,8 @@ test('TAKE on an item that is not in the room leaves the database unchanged', as
     assert.match(logRow.response_text, /no lamp here/);
 });
 
-test('FIGHT acknowledges a monster in the room without resolving combat', async () => {
-    const { clearingId, denId } = seedTestWorld();
+test('FIGHT starts a combat with the monster in the room and redirects to the Combat page', async () => {
+    const { clearingId, wolfId } = seedTestWorld();
     const app = createApp();
     const { agent, character } = await createGuestCharacter(app, clearingId);
 
@@ -210,13 +210,15 @@ test('FIGHT acknowledges a monster in the room without resolving combat', async 
 
     const command = await agent.post('/character/adventure/command').type('form').send({ command: 'fight' });
     assert.equal(command.status, 302);
+    assert.equal(command.headers.location, '/character/combat');
 
-    const afterFight = db.prepare('SELECT health FROM characters WHERE id = ?').get(character.id);
-    assert.equal(afterFight.health, beforeFight.health); // combat lands in Checkpoint 5, not here
+    const afterFight = db.prepare('SELECT health, combat_monster_id, combat_monster_health FROM characters WHERE id = ?').get(character.id);
+    assert.equal(afterFight.health, beforeFight.health); // starting a fight deals no damage by itself
+    assert.equal(afterFight.combat_monster_id, wolfId);
+    assert.equal(afterFight.combat_monster_health, 20); // the Ashen Wolf's full health
 
     const logRow = db.prepare('SELECT response_text FROM command_log WHERE character_id = ? ORDER BY id DESC LIMIT 1').get(character.id);
     assert.match(logRow.response_text, /Ashen Wolf/);
-    assert.equal(denId, db.prepare('SELECT current_room_id FROM characters WHERE id = ?').get(character.id).current_room_id);
 });
 
 test('FIGHT with no monster present says so instead of crashing', async () => {

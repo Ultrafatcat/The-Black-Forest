@@ -367,6 +367,7 @@ export function createApp() {
 
         const { response: responseText, effects } = resolveCommand(rawCommand, { room, exits, roomItems, monster, inventory });
 
+        let startedCombat = false;
         for (const effect of effects) {
             if (effect.type === 'move') {
                 db.prepare("UPDATE characters SET current_room_id = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?")
@@ -386,13 +387,21 @@ export function createApp() {
                     db.prepare('INSERT INTO character_items (character_id, item_id, quantity, is_equipped) VALUES (?, ?, 1, 0)')
                         .run(character.id, effect.itemId);
                 }
+            } else if (effect.type === 'start_combat') {
+                // The fight's running HP lives on the character, separate
+                // from the monster's shared base stats, so two characters
+                // can fight the same monster type independently.
+                const monsterRow = db.prepare('SELECT health FROM monsters WHERE id = ?').get(effect.monsterId);
+                db.prepare('UPDATE characters SET combat_monster_id = ?, combat_monster_health = ? WHERE id = ?')
+                    .run(effect.monsterId, monsterRow.health, character.id);
+                startedCombat = true;
             }
         }
 
         db.prepare('INSERT INTO command_log (character_id, raw_command, response_text) VALUES (?, ?, ?)')
             .run(character.id, rawCommand, responseText);
 
-        response.redirect('/character/adventure');
+        response.redirect(startedCombat ? '/character/combat' : '/character/adventure');
     });
 
     app.get('/character/inventory', (request, response) => {
