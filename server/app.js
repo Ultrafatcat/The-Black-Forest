@@ -13,6 +13,8 @@ import { spendAttributePoint, ALLOCATABLE_ATTRIBUTES } from './game/attributePoi
 import { resolveCommand } from './game/commandParser.js';
 import { DICTIONARY_ENTRIES } from './game/dictionary.js';
 import { resolveEquip, resolveUse } from './game/inventory.js';
+import { resolveCombatRound } from './game/combat.js';
+import { applyXpGain } from './game/leveling.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -445,6 +447,109 @@ export function createApp() {
             message,
             error: null,
         });
+    });
+
+    // Resolves one round of the current fight. The pure math lives in
+    // game/combat.js and game/leveling.js; this route just loads the rows,
+    // applies the result, and writes combat_logs when the fight ends.
+    app.post('/character/combat/action', (request, response) => {
+        if (!request.session.characterId) {
+            return response.redirect('/character/new');
+        }
+
+        const character = db.prepare('SELECT * FROM characters WHERE id = ?').get(request.session.characterId);
+        if (!character) {
+            request.session.characterId = null;
+            return response.redirect('/character/new');
+        }
+        if (!character.combat_monster_id) {
+            return response.redirect('/character/adventure');
+        }
+
+        // Re-check the skill is one this character may use, since the form
+        // value could be stale or edited -- same ownership idea as the
+        // inventory routes.
+        const skill = db.prepare(`
+            SELECT * FROM skills
+            WHERE id = ? AND (class = ? OR class IS NULL) AND min_level <= ?
+        `).get(Number(request.body.skillId), character.class, character.level);
+        if (!skill) {
+            request.session.combatMessage = "You can't do that.";
+            return response.redirect('/character/combat');
+        }
+
+        const monsterRow = db.prepare('SELECT * FROM monsters WHERE id = ?').get(character.combat_monster_id);
+        const result = resolveCombatRound(
+            character,
+            { name: monsterRow.name, health: character.combat_monster_health, attack: monsterRow.attack, defense: monsterRow.defense },
+            skill
+        );
+
+        if (!result.ok) {
+            // Rejected (not enough mana): no turn spent, nothing changes.
+            request.session.combatMessage = result.error;
+            return response.redirect('/character/combat');
+        }
+
+        const newMana = character.mana - result.manaSpent;
+        const endFight = (outcome, xpGained, gold, text) => {
+            db.prepare('INSERT INTO combat_logs (character_id, monster_id, outcome, xp_gained, gold_gained) VALUES (?, ?, ?, ?, ?)')
+                .run(character.id, monsterRow.id, outcome, xpGained, gold);
+            db.prepare('INSERT INTO command_log (character_id, raw_command, response_text) VALUES (?, ?, ?)')
+                .run(character.id, 'FIGHT', text);
+            return response.redirect('/character/adventure');
+        };
+
+        if (result.monsterDefeated) {
+            const gained = applyXpGain(character, monsterRow.xp_reward);
+            db.prepare(`
+                UPDATE characters
+                SET health = ?, mana = ?, xp = ?, level = ?, attribute_points = ?, max_health = ?, max_mana = ?,
+                    gold = gold + ?, monsters_defeated = monsters_defeated + 1,
+                    combat_monster_id = NULL, combat_monster_health = NULL,
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ?
+            `).run(result.characterHealth, newMana, gained.xp, gained.level, gained.attributePoints,
+                gained.maxHealth, gained.maxMana, monsterRow.gold_reward, character.id);
+
+            let text = `${result.message} You gain ${monsterRow.xp_reward} XP and ${monsterRow.gold_reward} gold.`;
+            if (gained.leveledUp) {
+                text += ` You reach level ${gained.level}! You have ${gained.attributePoints} Attribute Points to spend.`;
+            }
+            return endFight('victory', monsterRow.xp_reward, monsterRow.gold_reward, text);
+        }
+
+        if (result.characterDefeated) {
+            // No death/respawn system yet -- leave the character on 1 health
+            // so they aren't stuck at 0.
+            db.prepare(`
+                UPDATE characters
+                SET health = 1, mana = ?, combat_monster_id = NULL, combat_monster_health = NULL,
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ?
+            `).run(newMana, character.id);
+            return endFight('defeat', 0, 0, `${result.message} You come to, barely alive.`);
+        }
+
+        if (result.fled) {
+            db.prepare(`
+                UPDATE characters
+                SET mana = ?, combat_monster_id = NULL, combat_monster_health = NULL,
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                WHERE id = ?
+            `).run(newMana, character.id);
+            return endFight('fled', 0, 0, result.message);
+        }
+
+        // Fight continues: save this round and stay on the Combat page.
+        db.prepare(`
+            UPDATE characters
+            SET health = ?, mana = ?, combat_monster_health = ?,
+                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            WHERE id = ?
+        `).run(result.characterHealth, newMana, result.monsterHealth, character.id);
+        request.session.combatMessage = result.message;
+        response.redirect('/character/combat');
     });
 
     app.get('/character/inventory', (request, response) => {
