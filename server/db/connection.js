@@ -26,3 +26,11 @@ const roomExitColumns = db.prepare('PRAGMA table_info(room_exits)').all();
 if (!roomExitColumns.some((column) => column.name === 'hint')) {
     db.exec('ALTER TABLE room_exits ADD COLUMN hint TEXT');
 }
+
+const characterColumns = db.prepare('PRAGMA table_info(characters)').all();
+if (!characterColumns.some((column) => column.name === 'combat_monster_id')) {
+    db.exec('ALTER TABLE characters ADD COLUMN combat_monster_id INTEGER REFERENCES monsters(id)');
+}
+if (!characterColumns.some((column) => column.name === 'combat_monster_health')) {
+    db.exec('ALTER TABLE characters ADD COLUMN combat_monster_health INTEGER');
+}
