@@ -372,10 +372,9 @@ export function createApp() {
                 db.prepare("UPDATE characters SET current_room_id = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?")
                     .run(effect.destinationRoomId, character.id);
             } else if (effect.type === 'take') {
-                // Records this character's own pickup rather than touching
-                // room_items -- room_items is shared, permanent world data,
-                // so another character (or this same player's next New
-                // Game) still finds the item here.
+                // room_items is shared/permanent world data -- taking an item
+                // only marks it taken for THIS character, so other
+                // characters (and new runs) still see it in the room.
                 db.prepare('INSERT INTO character_taken_room_items (character_id, room_item_id) VALUES (?, ?)')
                     .run(character.id, effect.roomItemId);
 
