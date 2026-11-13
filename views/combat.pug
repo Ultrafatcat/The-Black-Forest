@@ -1,0 +1,50 @@
+extends layout
+
+block content
+  .py-4
+    h1.mb-1 Combat
+    p.text-muted= character.name + ' vs. the ' + monster.name
+
+    if message
+      .alert.alert-secondary= message
+    if error
+      .alert.alert-danger= error
+
+    .row.g-3.mb-4
+      .col-md-6
+        .card.bg-dark.border-secondary.h-100
+          .card-body
+            h2.h5.card-title= character.name
+            p.mb-1
+              strong Health:
+              |  
+              span= character.health + ' / ' + character.max_health
+            p.mb-0
+              strong Mana:
+              |  
+              span= character.mana + ' / ' + character.max_mana
+      .col-md-6
+        .card.bg-dark.border-danger.h-100
+          .card-body
+            h2.h5.card-title= monster.name
+            p.mb-0
+              strong Health:
+              |  
+              span= monsterHealth + ' / ' + monster.health
+
+    h2.h5 Choose your action
+    .row.g-3
+      each skill in skills
+        .col-md-6
+          .card.bg-dark.border-secondary.h-100
+            .card-body
+              h3.h6.card-title.mb-1= skill.name
+              p.text-muted.small.mb-2
+                if skill.mana_cost > 0
+                  span= skill.mana_cost + ' mana'
+                else
+                  span No mana cost
+              p.small.mb-3= skill.description
+              form(method="post" action="/character/combat/action")
+                input(type="hidden" name="skillId" value=skill.id)
+                button.btn.btn-outline-light.btn-sm(type="submit" disabled=skill.mana_cost > character.mana)= skill.name

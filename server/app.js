@@ -404,6 +404,49 @@ export function createApp() {
         response.redirect(startedCombat ? '/character/combat' : '/character/adventure');
     });
 
+    // The Combat page. Only reachable mid-fight: FIGHT on the Adventure page
+    // records combat_monster_id on the character, and anyone without one is
+    // sent back to the Adventure. There is deliberately no way to leave
+    // from here except finishing the fight (win, lose, or Run).
+    app.get('/character/combat', (request, response) => {
+        if (!request.session.characterId) {
+            return response.redirect('/character/new');
+        }
+
+        const character = db.prepare('SELECT * FROM characters WHERE id = ?').get(request.session.characterId);
+        if (!character) {
+            request.session.characterId = null;
+            return response.redirect('/character/new');
+        }
+        if (!character.combat_monster_id) {
+            return response.redirect('/character/adventure');
+        }
+
+        const monster = db.prepare('SELECT id, name, health FROM monsters WHERE id = ?').get(character.combat_monster_id);
+
+        // Class skills first, then the universal actions (Dodge/Heal/Run).
+        const skills = db.prepare(`
+            SELECT id, name, class, mana_cost, effect_type, power, description
+            FROM skills
+            WHERE (class = ? OR class IS NULL) AND min_level <= ?
+            ORDER BY class IS NULL, id
+        `).all(character.class, character.level);
+
+        // One-time message from the last round, shown once then cleared.
+        const message = request.session.combatMessage || null;
+        request.session.combatMessage = null;
+
+        response.render('combat', {
+            title: 'Combat',
+            character,
+            monster,
+            monsterHealth: character.combat_monster_health,
+            skills,
+            message,
+            error: null,
+        });
+    });
+
     app.get('/character/inventory', (request, response) => {
         if (!request.session.characterId) {
             return response.redirect('/character/new');
