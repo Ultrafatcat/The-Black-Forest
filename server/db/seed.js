@@ -169,7 +169,7 @@ const skills = [
     ['Power Strike',   'Warrior',  1, 0, 'damage', 8,  'A heavy, two-handed blow aimed to end the fight quickly.'],
     ['Piercing Shot',  'Archer',   1, 0, 'damage', 6,  "A well-aimed arrow that finds the gap in any guard."],
     ['Firebolt',       'Mage',     1, 5, 'damage', 10, 'A roaring bolt of flame, costly to cast but devastating to land.'],
-    ['Smite',          'Paladin',  1, 3, 'damage', 7,  'A blow channeled with holy light, punishing anything that stands against you.'],
+    ['Smite',          'Paladin',  1, 2, 'damage', 7,  'A blow channeled with holy light, punishing anything that stands against you.'],
     ["Nature's Wrath", 'Druid',    1, 4, 'damage', 7,  "Thorns and root-snarl erupt at your call, tearing into your foe."],
     ['Sneak Attack',   'Rogue',    1, 0, 'damage', 9,  "A vicious strike aimed at the one moment an enemy's guard drops."],
     ['Dodge',          null,       1, 0, 'utility', 0, 'Brace and sidestep, trading your own attack for a guaranteed miss.'],
@@ -181,6 +181,14 @@ const insertMissingSkill = db.prepare(`
     SELECT ?, ?, ?, ?, ?, ?, ?
     WHERE NOT EXISTS (SELECT 1 FROM skills WHERE name = ?)
 `);
+// Keeps skills already in the database in step with the numbers above, so a
+// balance change (Smite's mana cost, for one) also reaches a database that
+// was seeded earlier -- insert-if-missing alone would leave the old values.
+const syncSkill = db.prepare(`
+    UPDATE skills SET class = ?, min_level = ?, mana_cost = ?, effect_type = ?, power = ?, description = ?
+    WHERE name = ?
+`);
 for (const skill of skills) {
     insertMissingSkill.run(...skill, skill[0]);
+    syncSkill.run(...skill.slice(1), skill[0]);
 }

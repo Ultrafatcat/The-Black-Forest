@@ -526,10 +526,11 @@ export function createApp() {
                     combat_monster_id = NULL, combat_monster_health = NULL,
                     updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
                 WHERE id = ?
-            `).run(result.characterHealth, newMana, gained.xp, gained.level, gained.attributePoints,
+            `).run(result.characterHealth, gained.maxMana, gained.xp, gained.level, gained.attributePoints,
                 gained.maxHealth, gained.maxMana, monsterRow.gold_reward, character.id);
 
-            let text = `${result.message} You gain ${monsterRow.xp_reward} XP and ${monsterRow.gold_reward} gold.`;
+            // Mana has no other way to recover, so winning a fight refills it.
+            let text = `${result.message} You gain ${monsterRow.xp_reward} XP and ${monsterRow.gold_reward} gold, and your mana is restored.`;
             if (gained.leveledUp) {
                 text += ` You reach level ${gained.level}! You have ${gained.attributePoints} Attribute Points to spend.`;
             }

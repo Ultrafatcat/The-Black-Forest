@@ -123,12 +123,13 @@ test('winning awards XP and gold, logs a victory, and clears the fight', async (
     const { wolfId, denId, skillIds } = seedCombatWorld();
     const app = createApp();
     const { agent, character } = await createRogueInFight(app, denId, wolfId);
-    db.prepare('UPDATE characters SET combat_monster_health = 5 WHERE id = ?').run(character.id);
+    db.prepare('UPDATE characters SET combat_monster_health = 5, mana = 1 WHERE id = ?').run(character.id);
 
     const response = await post(agent, skillIds.sneak);
     assert.equal(response.headers.location, '/character/adventure');
 
     const after = db.prepare('SELECT * FROM characters WHERE id = ?').get(character.id);
+    assert.equal(after.mana, after.max_mana); // victory refills mana
     assert.equal(after.xp, 15);
     assert.equal(after.gold, 5);
     assert.equal(after.monsters_defeated, 1);
@@ -284,6 +285,89 @@ test('once the fight is over, the Adventure page is reachable again', async () =
 
     const page = await agent.get('/character/adventure');
     assert.equal(page.status, 200);
+});
+
+// Starts a fight the way a player does -- standing in the den and typing
+// FIGHT -- instead of writing combat state straight into the database.
+async function createRogueAndTypeFight(app, denId) {
+    const agent = request.agent(app);
+    const name = `Fighter${++characterCount}`;
+    await agent.post('/character/new').type('form').send({ name, race: 'Fae', class: 'Rogue' });
+    db.prepare('UPDATE characters SET current_room_id = ?, resilience = 0 WHERE name = ?').run(denId, name);
+    const fight = await agent.post('/character/adventure/command').type('form').send({ command: 'fight' });
+    const character = db.prepare('SELECT * FROM characters WHERE name = ?').get(name);
+    return { agent, character, fight };
+}
+
+test('a full fight: FIGHT, three rounds of attacks, then victory with rewards and a log', async () => {
+    const { denId, skillIds } = seedCombatWorld();
+    const app = createApp();
+    const { agent, character, fight } = await createRogueAndTypeFight(app, denId);
+    assert.equal(fight.headers.location, '/character/combat');
+
+    // Sneak Attack does 8 a round to a 20 HP wolf: 20 -> 12 -> 4 -> dead.
+    const round1 = await post(agent, skillIds.sneak);
+    assert.equal(round1.headers.location, '/character/combat');
+    const round2 = await post(agent, skillIds.sneak);
+    assert.equal(round2.headers.location, '/character/combat');
+    assert.equal(db.prepare('SELECT combat_monster_health AS h FROM characters WHERE id = ?').get(character.id).h, 4);
+    const round3 = await post(agent, skillIds.sneak);
+    assert.equal(round3.headers.location, '/character/adventure');
+
+    const after = db.prepare('SELECT * FROM characters WHERE id = ?').get(character.id);
+    assert.equal(after.health, character.health - 8); // wolf hit back twice for 4, not on the killing blow
+    assert.equal(after.xp, 15);
+    assert.equal(after.gold, 5);
+    assert.equal(after.monsters_defeated, 1);
+    assert.equal(after.combat_monster_id, null);
+
+    assert.equal(db.prepare('SELECT COUNT(*) AS c FROM combat_logs WHERE character_id = ?').get(character.id).c, 1);
+
+    const page = await agent.get('/character/adventure');
+    assert.equal(page.status, 200);
+    assert.match(page.text, /defeated/);
+});
+
+test('Heal restores health and spends mana, and the monster still hits back', async () => {
+    const { wolfId, denId, skillIds } = seedCombatWorld();
+    const app = createApp();
+    const { agent, character } = await createRogueInFight(app, denId, wolfId);
+    setCharacter(character.name, { health: 10, max_health: 40, mana: 20, resilience: 0 });
+
+    await post(agent, skillIds.heal);
+
+    const after = db.prepare('SELECT health, mana, combat_monster_health FROM characters WHERE id = ?').get(character.id);
+    assert.equal(after.health, 14); // 10 + 8 healed - 4 from the wolf
+    assert.equal(after.mana, 16);
+    assert.equal(after.combat_monster_health, 20); // Heal deals no damage
+});
+
+test('two characters fighting the same monster keep separate monster health', async () => {
+    const { denId, skillIds } = seedCombatWorld();
+    const app = createApp();
+    const first = await createRogueAndTypeFight(app, denId);
+    const second = await createRogueAndTypeFight(app, denId);
+
+    await post(first.agent, skillIds.sneak);
+
+    const firstAfter = db.prepare('SELECT combat_monster_health AS h FROM characters WHERE id = ?').get(first.character.id);
+    const secondAfter = db.prepare('SELECT combat_monster_health AS h FROM characters WHERE id = ?').get(second.character.id);
+    assert.equal(firstAfter.h, 12);
+    assert.equal(secondAfter.h, 20); // untouched by the other player's fight
+});
+
+test('after winning, the same monster can be fought again at full health', async () => {
+    const { denId, skillIds } = seedCombatWorld();
+    const app = createApp();
+    const { agent, character } = await createRogueAndTypeFight(app, denId);
+    db.prepare('UPDATE characters SET combat_monster_health = 5 WHERE id = ?').run(character.id);
+    await post(agent, skillIds.sneak); // win
+
+    const again = await agent.post('/character/adventure/command').type('form').send({ command: 'fight' });
+    assert.equal(again.headers.location, '/character/combat');
+
+    const after = db.prepare('SELECT combat_monster_health AS h FROM characters WHERE id = ?').get(character.id);
+    assert.equal(after.h, 20);
 });
 
 test.after(() => {
