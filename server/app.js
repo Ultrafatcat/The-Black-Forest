@@ -52,6 +52,23 @@ export function createApp() {
             && db.prepare('SELECT 1 FROM characters WHERE id = ?').get(request.session.characterId));
     }
 
+    // A character mid-fight can't wander off: any page they could use to
+    // dodge the fight (Adventure, Inventory, Character Sheet) sends them
+    // back to the Combat page until it is resolved. The menu, Dictionary,
+    // Account and New Game stay reachable so a fight can never lock a
+    // player out of the app itself.
+    const LOCKED_DURING_COMBAT = ['/character/adventure', '/character/inventory', '/character/attributes'];
+    app.use((request, response, next) => {
+        const isLockedPage = request.path === '/character' || LOCKED_DURING_COMBAT.some((prefix) => request.path.startsWith(prefix));
+        if (isLockedPage && request.session.characterId) {
+            const fighting = db.prepare('SELECT combat_monster_id FROM characters WHERE id = ?').get(request.session.characterId);
+            if (fighting && fighting.combat_monster_id) {
+                return response.redirect('/character/combat');
+            }
+        }
+        next();
+    });
+
     app.get('/', (request, response) => {
         // A "run" is just a character the session points at -- true for a
         // guest (characterId only) and for a logged-in player alike, so

@@ -244,6 +244,48 @@ test('POST /character/combat/action when not in a fight redirects to the Adventu
     assert.equal(response.headers.location, '/character/adventure');
 });
 
+test('mid-fight, the Adventure page, commands, Inventory, and Character Sheet all redirect to Combat', async () => {
+    const { wolfId, denId } = seedCombatWorld();
+    const app = createApp();
+    const { agent, character } = await createRogueInFight(app, denId, wolfId);
+
+    for (const url of ['/character/adventure', '/character/inventory', '/character']) {
+        const response = await agent.get(url);
+        assert.equal(response.status, 302, url);
+        assert.equal(response.headers.location, '/character/combat', url);
+    }
+
+    const command = await agent.post('/character/adventure/command').type('form').send({ command: 'go north' });
+    assert.equal(command.headers.location, '/character/combat');
+
+    const attributes = await agent.post('/character/attributes').type('form').send({ stat: 'strength' });
+    assert.equal(attributes.headers.location, '/character/combat');
+
+    // ...and nothing actually happened behind the redirect.
+    const after = db.prepare('SELECT current_room_id FROM characters WHERE id = ?').get(character.id);
+    assert.equal(after.current_room_id, denId);
+});
+
+test('mid-fight, the menu and Dictionary are still reachable', async () => {
+    const { wolfId, denId } = seedCombatWorld();
+    const app = createApp();
+    const { agent } = await createRogueInFight(app, denId, wolfId);
+
+    assert.equal((await agent.get('/')).status, 200);
+    assert.equal((await agent.get('/dictionary')).status, 200);
+});
+
+test('once the fight is over, the Adventure page is reachable again', async () => {
+    const { wolfId, denId, skillIds } = seedCombatWorld();
+    const app = createApp();
+    const { agent } = await createRogueInFight(app, denId, wolfId);
+
+    await post(agent, skillIds.run);
+
+    const page = await agent.get('/character/adventure');
+    assert.equal(page.status, 200);
+});
+
 test.after(() => {
     db.close();
     fs.rmSync(process.env.DATA_FILE, { force: true });
