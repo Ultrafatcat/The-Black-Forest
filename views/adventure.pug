@@ -16,7 +16,7 @@ block content
               if roomItems.length > 0
                 p.mb-1.text-muted You see: #{roomItems.map(i => i.name).join(', ')}.
               if monster
-                p.mb-1.text-warning A #{monster.name} is here.
+                p.mb-1.text-warning #{/^[aeiou]/i.test(monster.name) ? 'An' : 'A'} #{monster.name} is here.
               if exits.length > 0
                 p.mb-0.text-muted Exits: #{exits.map(e => e.direction).join(', ')}.
               else

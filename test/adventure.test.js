@@ -103,6 +103,7 @@ test('GO moves the character through a real exit and logs the command', async ()
 
     const page = await agent.get('/character/adventure');
     assert.match(page.text, /Wolf's Den/);
+    assert.match(page.text, /An Ashen Wolf is here/); // correct article for a vowel-initial name
 });
 
 test('GO in a direction with no exit does not move the character', async () => {

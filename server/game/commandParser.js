@@ -166,7 +166,7 @@ function resolveFight({ monster }) {
     // character and sends them to the Combat page, where every round is
     // resolved (see server/game/combat.js).
     return {
-        response: `You square up against ${withArticle(monster.name)}!`,
+        response: `You square up against the ${monster.name}!`,
         effects: [{ type: 'start_combat', monsterId: monster.id }],
     };
 }
