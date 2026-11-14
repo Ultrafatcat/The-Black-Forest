@@ -32,7 +32,7 @@ function seedCombatWorld() {
     const skillIds = {
         sneak: insertSkill.run('Sneak Attack', 'Rogue', 1, 0, 'damage', 9, 'A vicious strike.').lastInsertRowid,
         firebolt: insertSkill.run('Firebolt', 'Mage', 1, 5, 'damage', 10, 'A bolt of flame.').lastInsertRowid,
-        dodge: insertSkill.run('Dodge', null, 1, 0, 'utility', 0, 'Sidestep.').lastInsertRowid,
+        dodge: insertSkill.run('Dodge', null, 1, 0, 'utility', 3, 'Sidestep.').lastInsertRowid,
         heal: insertSkill.run('Heal', null, 1, 4, 'heal', 8, 'Mend wounds.').lastInsertRowid,
         run: insertSkill.run('Run', null, 1, 0, 'utility', 0, 'Flee.').lastInsertRowid,
     };
@@ -205,6 +205,27 @@ test('Dodge spends no health and no monster HP', async () => {
     const after = db.prepare('SELECT health, combat_monster_health FROM characters WHERE id = ?').get(character.id);
     assert.equal(after.health, character.health);
     assert.equal(after.combat_monster_health, 20);
+});
+
+test('using Dodge between spells lets a mana-short character finish the fight', async () => {
+    // Real balance check: 10 mana, Heal costs 4 and Smite 2 -- without
+    // Dodge's mana back, 4 Smites + a Heal (12 mana) can't be afforded.
+    const { wolfId, denId, skillIds } = seedCombatWorld();
+    const smiteId = db.prepare(
+        "INSERT INTO skills (name, class, min_level, mana_cost, effect_type, power, description) VALUES ('Smite','Rogue',1,2,'damage',7,'t')"
+    ).run().lastInsertRowid;
+    const app = createApp();
+    const { agent, character } = await createRogueInFight(app, denId, wolfId);
+    setCharacter(character.name, { mana: 10, max_mana: 10, health: 20, max_health: 40, resilience: 5 });
+
+    await post(agent, smiteId);        // 10 -> 8
+    await post(agent, skillIds.heal);  // 8 -> 4
+    await post(agent, skillIds.dodge); // 4 -> 7
+    await post(agent, smiteId);        // 7 -> 5
+    await post(agent, smiteId);        // 5 -> 3
+    const last = await post(agent, smiteId); // 3 -> 1, wolf dead (4 x 6 = 24 >= 20)
+    assert.equal(last.headers.location, '/character/adventure');
+    assert.equal(db.prepare('SELECT outcome FROM combat_logs WHERE character_id = ?').get(character.id).outcome, 'victory');
 });
 
 test('an action the character cannot afford is rejected without using a turn', async () => {

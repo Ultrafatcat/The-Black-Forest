@@ -15,11 +15,11 @@ import {
 const strike = { name: 'Power Strike', effect_type: 'damage', power: 8, mana_cost: 0 };
 const firebolt = { name: 'Firebolt', effect_type: 'damage', power: 10, mana_cost: 5 };
 const heal = { name: 'Heal', effect_type: 'heal', power: 8, mana_cost: 4 };
-const dodge = { name: 'Dodge', effect_type: 'utility', power: 0, mana_cost: 0 };
+const dodge = { name: 'Dodge', effect_type: 'utility', power: 3, mana_cost: 0 };
 const run = { name: 'Run', effect_type: 'utility', power: 0, mana_cost: 0 };
 
 function character(overrides = {}) {
-    return { health: 40, max_health: 40, mana: 20, resilience: 5, ...overrides };
+    return { health: 40, max_health: 40, mana: 20, max_mana: 20, resilience: 5, ...overrides };
 }
 
 function monster(overrides = {}) {
@@ -85,6 +85,23 @@ test('Dodge deals no damage and the monster\'s attack misses', () => {
     assert.equal(result.monsterHealth, 20);
     assert.equal(result.characterHealth, 40);
     assert.equal(result.fled, false);
+});
+
+test('Dodge restores mana', () => {
+    const result = resolveCombatRound(character({ mana: 5 }), monster(), dodge);
+    assert.equal(result.manaRestored, 3);
+    assert.equal(result.newMana, 8);
+});
+
+test('Dodge never restores mana past max_mana', () => {
+    const result = resolveCombatRound(character({ mana: 19 }), monster(), dodge);
+    assert.equal(result.manaRestored, 1);
+    assert.equal(result.newMana, 20);
+});
+
+test('a skill that costs mana reports the new mana total', () => {
+    const result = resolveCombatRound(character({ mana: 20 }), monster(), firebolt);
+    assert.equal(result.newMana, 15);
 });
 
 test('Run flees without the monster getting a parting hit', () => {

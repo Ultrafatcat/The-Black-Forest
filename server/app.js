@@ -508,7 +508,7 @@ export function createApp() {
             return response.redirect('/character/combat');
         }
 
-        const newMana = character.mana - result.manaSpent;
+        const newMana = result.newMana;
         const endFight = (outcome, xpGained, gold, text) => {
             db.prepare('INSERT INTO combat_logs (character_id, monster_id, outcome, xp_gained, gold_gained) VALUES (?, ?, ?, ?, ?)')
                 .run(character.id, monsterRow.id, outcome, xpGained, gold);

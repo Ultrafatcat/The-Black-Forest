@@ -45,6 +45,7 @@ export function resolveCombatRound(character, monster, skill) {
     let characterHealth = character.health;
     let dodged = false;
     let fled = false;
+    let manaRestored = 0;
 
     if (skill.effect_type === 'damage') {
         const damage = resolveSkillDamage(skill, monster);
@@ -55,8 +56,14 @@ export function resolveCombatRound(character, monster, skill) {
         lines.push(`You use ${skill.name} and recover ${healed - character.health} health.`);
         characterHealth = healed;
     } else if (skill.name === 'Dodge') {
+        // Dodge deals no damage, but catching your breath gives mana back
+        // (its power is the amount) -- the way a mana-based class recovers
+        // mid-fight, since Heal and class skills drain it.
         dodged = true;
-        lines.push('You brace yourself, ready to sidestep the next blow.');
+        manaRestored = Math.min(skill.power, character.max_mana - character.mana);
+        lines.push(manaRestored > 0
+            ? `You brace yourself and catch your breath, recovering ${manaRestored} mana.`
+            : 'You brace yourself, ready to sidestep the next blow.');
     } else if (skill.name === 'Run') {
         fled = true;
         lines.push('You break off the fight and flee.');
@@ -88,6 +95,8 @@ export function resolveCombatRound(character, monster, skill) {
         monsterHealth,
         characterHealth,
         manaSpent: skill.mana_cost,
+        manaRestored,
+        newMana: character.mana - skill.mana_cost + manaRestored,
         monsterDefeated,
         characterDefeated,
         fled,

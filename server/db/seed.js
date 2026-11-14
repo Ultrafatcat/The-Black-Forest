@@ -172,7 +172,7 @@ const skills = [
     ['Smite',          'Paladin',  1, 2, 'damage', 7,  'A blow channeled with holy light, punishing anything that stands against you.'],
     ["Nature's Wrath", 'Druid',    1, 4, 'damage', 7,  "Thorns and root-snarl erupt at your call, tearing into your foe."],
     ['Sneak Attack',   'Rogue',    1, 0, 'damage', 9,  "A vicious strike aimed at the one moment an enemy's guard drops."],
-    ['Dodge',          null,       1, 0, 'utility', 0, 'Brace and sidestep, trading your own attack for a guaranteed miss.'],
+    ['Dodge',          null,       1, 0, 'utility', 3, 'Brace and sidestep, trading your own attack for a guaranteed miss and a moment to recover 3 mana.'],
     ['Heal',           null,       1, 4, 'heal',    8, 'Draw on what strength you have left to mend your wounds mid-fight.'],
     ['Run',            null,       1, 0, 'utility', 0, 'Break off the fight and put distance between you and your enemy.'],
 ];
