@@ -1,0 +1,66 @@
+extends layout
+
+block content
+  .py-4
+    h1.mb-1 Friends
+    p.text-muted.mb-4 Add other players by username, answer requests, and keep your friend group together.
+
+    if notice
+      .alert.alert-success= notice
+    if error
+      .alert.alert-danger= error
+
+    .card.bg-dark.border-secondary.mb-4
+      .card-body
+        h2.h5.card-title Add a friend
+        form.row.g-2(method="post" action="/friends/request")
+          .col-sm-8
+            label.visually-hidden(for="username") Username
+            input#username.form-control(type="text" name="username" placeholder="Their username" value=username required)
+          .col-sm-4
+            button.btn.btn-success.w-100(type="submit") Send request
+
+    if incoming.length > 0
+      .card.bg-dark.border-secondary.mb-4
+        .card-body
+          h2.h5.card-title Requests for you
+          ul.list-group.list-group-flush
+            each request in incoming
+              li.list-group-item.bg-dark.d-flex.justify-content-between.align-items-center.flex-wrap.gap-2
+                span
+                  strong= request.nickname
+                  span.text-muted.small= ' (' + request.username + ')'
+                span.d-flex.gap-2
+                  form(method="post" action="/friends/" + request.friendshipId + "/respond")
+                    input(type="hidden" name="decision" value="accept")
+                    button.btn.btn-sm.btn-success(type="submit") Accept
+                  form(method="post" action="/friends/" + request.friendshipId + "/respond")
+                    input(type="hidden" name="decision" value="decline")
+                    button.btn.btn-sm.btn-outline-secondary(type="submit") Decline
+
+    .card.bg-dark.border-secondary.mb-4
+      .card-body
+        h2.h5.card-title Your friends
+        if friends.length === 0
+          p.text-muted.fst-italic.mb-0 No friends yet. Send a request above to get started.
+        else
+          ul.list-group.list-group-flush
+            each friend in friends
+              li.list-group-item.bg-dark
+                strong= friend.nickname
+                if friend.characterName
+                  span.text-muted.small= ' · ' + friend.characterName + ' (' + friend.characterClass + ', level ' + friend.level + ')'
+                else
+                  span.text-muted.small.fst-italic  · no character yet
+
+    if outgoing.length > 0
+      .card.bg-dark.border-secondary.mb-4
+        .card-body
+          h2.h5.card-title Waiting for an answer
+          ul.list-group.list-group-flush
+            each request in outgoing
+              li.list-group-item.bg-dark
+                = request.nickname
+                span.text-muted.small= ' (' + request.username + ')'
+
+    a.btn.btn-outline-light(href="/") Return to Menu

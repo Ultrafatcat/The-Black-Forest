@@ -16,6 +16,11 @@ import { resolveEquip, resolveUse } from './game/inventory.js';
 import { resolveCombatRound } from './game/combat.js';
 import { applyXpGain } from './game/leveling.js';
 import { getPublicLeaderboard } from './leaderboard.js';
+import { resolveFriendRequest, resolveFriendResponse } from './game/friends.js';
+import {
+    findUserByUsername, findFriendshipsBetween, createFriendRequest, reopenFriendRequest,
+    findFriendship, setFriendshipStatus, loadFriendsPage,
+} from './friendsQueries.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -717,6 +722,70 @@ export function createApp() {
             entries: getPublicLeaderboard(db),
             currentUserId: request.session.user ? request.session.user.id : null,
         });
+    });
+
+    // Friends need an account, so everything here sends a logged-out visitor
+    // to Login. A one-time message from the last action rides in the session
+    // (the same way Combat does) so a successful POST can redirect and a
+    // refresh won't resubmit the form.
+    function renderFriends(request, response, { status = 200, error = null, username = '' } = {}) {
+        const notice = request.session.friendsNotice || null;
+        request.session.friendsNotice = null;
+        response.status(status).render('friends', {
+            title: 'Friends',
+            ...loadFriendsPage(db, request.session.user.id),
+            notice,
+            error,
+            username,
+        });
+    }
+
+    app.get('/friends', (request, response) => {
+        if (!request.session.user) {
+            return response.redirect('/login');
+        }
+        renderFriends(request, response);
+    });
+
+    app.post('/friends/request', (request, response) => {
+        if (!request.session.user) {
+            return response.redirect('/login');
+        }
+
+        const me = request.session.user.id;
+        const typedName = (request.body.username || '').trim();
+        const addressee = typedName ? findUserByUsername(db, typedName) : undefined;
+        const existing = addressee ? findFriendshipsBetween(db, me, addressee.id) : [];
+
+        const result = resolveFriendRequest(me, typedName, addressee, existing);
+        if (!result.ok) {
+            return renderFriends(request, response, { status: 400, error: result.error, username: typedName });
+        }
+
+        if (result.action === 'reopen') {
+            reopenFriendRequest(db, result.friendshipId, me, addressee.id);
+        } else {
+            createFriendRequest(db, me, addressee.id);
+        }
+
+        request.session.friendsNotice = `Friend request sent to ${addressee.nickname}.`;
+        response.redirect('/friends');
+    });
+
+    app.post('/friends/:id/respond', (request, response) => {
+        if (!request.session.user) {
+            return response.redirect('/login');
+        }
+
+        const friendship = findFriendship(db, Number(request.params.id));
+        const result = resolveFriendResponse(request.session.user.id, friendship, request.body.decision);
+        if (!result.ok) {
+            return renderFriends(request, response, { status: 400, error: result.error });
+        }
+
+        setFriendshipStatus(db, friendship.id, result.status);
+        request.session.friendsNotice = result.status === 'accepted' ? 'Friend request accepted.' : 'Friend request declined.';
+        response.redirect('/friends');
     });
 
     app.get('/dictionary', (request, response) => {
