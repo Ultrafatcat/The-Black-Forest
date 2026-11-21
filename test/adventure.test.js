@@ -63,6 +63,13 @@ async function createGuestCharacter(app, startingRoomId) {
     const name = `Nym${++characterCount}`; // unique per test so lookups below can't cross-match
     await agent.post('/character/new').type('form').send({ name, race: 'Fae', class: 'Rogue' });
     db.prepare('UPDATE characters SET current_room_id = ? WHERE name = ?').run(startingRoomId, name);
+    // Real spawning marks the spawn room explored; forcing a different room
+    // above means resetting that to match, so rooms_explored starts at 1 for
+    // the room the test actually uses.
+    const created = db.prepare('SELECT id FROM characters WHERE name = ?').get(name);
+    db.prepare('DELETE FROM character_visited_rooms WHERE character_id = ?').run(created.id);
+    db.prepare('INSERT INTO character_visited_rooms (character_id, room_id) VALUES (?, ?)').run(created.id, startingRoomId);
+    db.prepare('UPDATE characters SET rooms_explored = 1 WHERE id = ?').run(created.id);
     const character = db.prepare('SELECT * FROM characters WHERE name = ?').get(name);
     return { agent, character };
 }
@@ -104,6 +111,43 @@ test('GO moves the character through a real exit and logs the command', async ()
     const page = await agent.get('/character/adventure');
     assert.match(page.text, /Wolf's Den/);
     assert.match(page.text, /An Ashen Wolf is here/); // correct article for a vowel-initial name
+});
+
+test('a new character starts with its spawn room counted as explored', async () => {
+    seedTestWorld();
+    const app = createApp();
+    const agent = request.agent(app);
+    await agent.post('/character/new').type('form').send({ name: 'Scout1', race: 'Fae', class: 'Rogue' });
+
+    const character = db.prepare('SELECT * FROM characters WHERE name = ?').get('Scout1');
+    assert.equal(character.rooms_explored, 1);
+    const visited = db.prepare('SELECT room_id FROM character_visited_rooms WHERE character_id = ?').all(character.id);
+    assert.equal(visited.length, 1);
+    assert.equal(visited[0].room_id, character.current_room_id);
+});
+
+test('GO counts each distinct room once, even when revisited', async () => {
+    const { clearingId } = seedTestWorld();
+    const app = createApp();
+    const { agent, character } = await createGuestCharacter(app, clearingId);
+
+    await agent.post('/character/adventure/command').type('form').send({ command: 'go north' });
+    assert.equal(db.prepare('SELECT rooms_explored FROM characters WHERE id = ?').get(character.id).rooms_explored, 2);
+
+    await agent.post('/character/adventure/command').type('form').send({ command: 'go south' });
+    await agent.post('/character/adventure/command').type('form').send({ command: 'go north' });
+    assert.equal(db.prepare('SELECT rooms_explored FROM characters WHERE id = ?').get(character.id).rooms_explored, 2);
+});
+
+test('a blocked GO does not count as exploring', async () => {
+    const { clearingId } = seedTestWorld();
+    const app = createApp();
+    const { agent, character } = await createGuestCharacter(app, clearingId);
+    const before = db.prepare('SELECT rooms_explored FROM characters WHERE id = ?').get(character.id).rooms_explored;
+
+    await agent.post('/character/adventure/command').type('form').send({ command: 'go south' }); // no exit that way
+
+    assert.equal(db.prepare('SELECT rooms_explored FROM characters WHERE id = ?').get(character.id).rooms_explored, before);
 });
 
 test('GO in a direction with no exit does not move the character', async () => {

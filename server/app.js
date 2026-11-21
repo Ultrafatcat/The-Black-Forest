@@ -223,6 +223,13 @@ export function createApp() {
             STARTING_ATTRIBUTE_POINTS, startingRoom ? startingRoom.id : null,
         );
 
+        // The room a character spawns in counts as explored from the start.
+        if (startingRoom) {
+            db.prepare('INSERT INTO character_visited_rooms (character_id, room_id) VALUES (?, ?)')
+                .run(result.lastInsertRowid, startingRoom.id);
+            db.prepare('UPDATE characters SET rooms_explored = 1 WHERE id = ?').run(result.lastInsertRowid);
+        }
+
         request.session.characterId = Number(result.lastInsertRowid);
 
         response.redirect('/character/adventure');
@@ -391,6 +398,14 @@ export function createApp() {
             if (effect.type === 'move') {
                 db.prepare("UPDATE characters SET current_room_id = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?")
                     .run(effect.destinationRoomId, character.id);
+                // Record both rooms: the destination is new ground, and the
+                // room being left covers characters made before rooms were
+                // tracked (their starting room was never recorded).
+                const markVisited = db.prepare('INSERT OR IGNORE INTO character_visited_rooms (character_id, room_id) VALUES (?, ?)');
+                markVisited.run(character.id, character.current_room_id);
+                markVisited.run(character.id, effect.destinationRoomId);
+                db.prepare('UPDATE characters SET rooms_explored = (SELECT COUNT(*) FROM character_visited_rooms WHERE character_id = ?) WHERE id = ?')
+                    .run(character.id, character.id);
             } else if (effect.type === 'take') {
                 // room_items is shared/permanent world data -- taking an item
                 // only marks it taken for THIS character, so other

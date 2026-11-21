@@ -99,6 +99,15 @@ CREATE TABLE IF NOT EXISTS character_items (
     is_equipped   INTEGER NOT NULL DEFAULT 0
 );
 
+-- Which rooms a character has entered, so rooms_explored counts DISTINCT
+-- rooms (the Leaderboard ranks on it) instead of every step taken.
+CREATE TABLE IF NOT EXISTS character_visited_rooms (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    character_id  INTEGER NOT NULL REFERENCES characters(id),
+    room_id       INTEGER NOT NULL REFERENCES rooms(id),
+    UNIQUE (character_id, room_id)
+);
+
 -- Tracks which shared room_items a given character has already picked up,
 -- so room_items itself stays shared/permanent world data that other
 -- characters still see fresh.
