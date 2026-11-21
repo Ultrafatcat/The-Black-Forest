@@ -19,7 +19,7 @@ import { getPublicLeaderboard } from './leaderboard.js';
 import { resolveFriendRequest, resolveFriendResponse } from './game/friends.js';
 import {
     findUserByUsername, findFriendshipsBetween, createFriendRequest, reopenFriendRequest,
-    findFriendship, setFriendshipStatus, loadFriendsPage,
+    findFriendship, setFriendshipStatus, loadFriendsPage, loadFriendCharacter,
 } from './friendsQueries.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -770,6 +770,35 @@ export function createApp() {
 
         request.session.friendsNotice = `Friend request sent to ${addressee.nickname}.`;
         response.redirect('/friends');
+    });
+
+    // A friend's character sheet, read-only. Friends can see each other's
+    // sheets even if that account is private on the Leaderboard -- privacy
+    // there only controls the public ranking. Anyone who isn't an accepted
+    // friend (stranger, pending, declined) gets the same "not found" as a
+    // player that doesn't exist, so the page can't be used to probe accounts.
+    app.get('/friends/:userId/character', (request, response) => {
+        if (!request.session.user) {
+            return response.redirect('/login');
+        }
+
+        const friendId = Number(request.params.userId);
+        const friendship = Number.isInteger(friendId)
+            ? findFriendshipsBetween(db, request.session.user.id, friendId).find((row) => row.status === 'accepted')
+            : undefined;
+        const friend = friendship ? loadFriendCharacter(db, friendId) : undefined;
+
+        if (!friend) {
+            return response.status(404).render('friend-character', { title: 'Not found', notFound: true });
+        }
+
+        response.render('friend-character', {
+            title: friend.character ? friend.character.name : friend.nickname,
+            notFound: false,
+            friendNickname: friend.nickname,
+            character: friend.character,
+            allocatableAttributes: ALLOCATABLE_ATTRIBUTES,
+        });
     });
 
     app.post('/friends/:id/respond', (request, response) => {

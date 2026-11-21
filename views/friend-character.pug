@@ -1,0 +1,61 @@
+extends layout
+
+block content
+  .py-4
+    if notFound
+      h1.mb-3 Not found
+      p.text-muted You can only view the characters of players who are your friends.
+    else
+      .mb-3
+        p.text-muted.small.text-uppercase.mb-1= friendNickname + "'s character"
+        if character
+          h1.mb-0= character.name
+          p.text-muted.mb-0= character.race + ' ' + character.class + ' · Level ' + character.level
+        else
+          h1.mb-0= friendNickname
+
+      if !character
+        .card.bg-dark.border-secondary
+          .card-body
+            p.text-muted.fst-italic.mb-0= friendNickname + " hasn't started a character yet."
+      else
+        .row.g-4
+          .col-md-6
+            .card.bg-dark.border-secondary
+              .card-body
+                h2.h5.card-title Attributes
+                ul.list-group.list-group-flush
+                  li.list-group-item.bg-dark.d-flex.justify-content-between
+                    span Health
+                    span= character.health + ' / ' + character.max_health
+                  li.list-group-item.bg-dark.d-flex.justify-content-between
+                    span Mana
+                    span= character.mana + ' / ' + character.max_mana
+                  each stat in allocatableAttributes
+                    li.list-group-item.bg-dark.d-flex.justify-content-between
+                      span.text-capitalize= stat
+                      span= character[stat]
+                  li.list-group-item.bg-dark.d-flex.justify-content-between
+                    span Gold
+                    span= character.gold
+
+          .col-md-6
+            .card.bg-dark.border-secondary
+              .card-body
+                h2.h5.card-title Adventure stats
+                ul.list-group.list-group-flush
+                  li.list-group-item.bg-dark.d-flex.justify-content-between
+                    span Level
+                    span= character.level
+                  li.list-group-item.bg-dark.d-flex.justify-content-between
+                    span Experience
+                    span= character.xp
+                  li.list-group-item.bg-dark.d-flex.justify-content-between
+                    span Monsters defeated
+                    span= character.monsters_defeated
+                  li.list-group-item.bg-dark.d-flex.justify-content-between
+                    span Rooms explored
+                    span= character.rooms_explored
+
+    .mt-4
+      a.btn.btn-outline-light(href="/friends") Return to Friends

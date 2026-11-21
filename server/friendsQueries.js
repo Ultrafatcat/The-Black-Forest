@@ -79,3 +79,14 @@ export function loadFriendsPage(db, userId) {
 
     return { incoming, outgoing, friends };
 }
+// A player's display name and newest character, for a friend's read-only
+// sheet. `character` is null if they haven't started one. Returns undefined
+// if there is no such account.
+export function loadFriendCharacter(db, userId) {
+    const user = db.prepare('SELECT id, nickname FROM users WHERE id = ?').get(userId);
+    if (!user) {
+        return undefined;
+    }
+    const character = db.prepare('SELECT * FROM characters WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(userId) || null;
+    return { nickname: user.nickname, character };
+}
