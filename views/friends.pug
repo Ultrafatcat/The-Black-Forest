@@ -65,4 +65,6 @@ block content
                 = request.nickname
                 span.text-muted.small= ' (' + request.username + ')'
 
-    a.btn.btn-outline-light(href="/") Return to Menu
+    .d-flex.gap-2.flex-wrap
+      a.btn.btn-success(href="/friends/leaderboard") Friends Leaderboard
+      a.btn.btn-outline-light(href="/") Return to Menu

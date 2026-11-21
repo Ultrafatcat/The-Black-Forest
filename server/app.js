@@ -15,7 +15,7 @@ import { DICTIONARY_ENTRIES } from './game/dictionary.js';
 import { resolveEquip, resolveUse } from './game/inventory.js';
 import { resolveCombatRound } from './game/combat.js';
 import { applyXpGain } from './game/leveling.js';
-import { getPublicLeaderboard } from './leaderboard.js';
+import { getPublicLeaderboard, getFriendsLeaderboard } from './leaderboard.js';
 import { resolveFriendRequest, resolveFriendResponse } from './game/friends.js';
 import {
     findUserByUsername, findFriendshipsBetween, createFriendRequest, reopenFriendRequest,
@@ -719,6 +719,11 @@ export function createApp() {
     app.get('/leaderboard', (request, response) => {
         response.render('leaderboard', {
             title: 'Leaderboard',
+            heading: 'Leaderboard',
+            intro: "The top adventurers in the forest, ranked by monsters defeated plus rooms explored. Level breaks ties. Players who keep their account private don't appear.",
+            emptyMessage: 'Nobody has made the board yet. Log in, play, and your character could be first.',
+            backHref: '/',
+            backLabel: 'Return to Menu',
             entries: getPublicLeaderboard(db),
             currentUserId: request.session.user ? request.session.user.id : null,
         });
@@ -770,6 +775,26 @@ export function createApp() {
 
         request.session.friendsNotice = `Friend request sent to ${addressee.nickname}.`;
         response.redirect('/friends');
+    });
+
+    // The same ranking as the public board, scoped to you and your accepted
+    // friends. It includes friends who are private on the public board, since
+    // friends can already see each other's characters.
+    app.get('/friends/leaderboard', (request, response) => {
+        if (!request.session.user) {
+            return response.redirect('/login');
+        }
+
+        response.render('leaderboard', {
+            title: 'Friends Leaderboard',
+            heading: 'Friends Leaderboard',
+            intro: 'You and your friends, ranked by monsters defeated plus rooms explored, with level as the tiebreaker. Friends show up here even if their account is private on the public Leaderboard.',
+            emptyMessage: 'Nobody in your friend group has a character yet.',
+            backHref: '/friends',
+            backLabel: 'Return to Friends',
+            entries: getFriendsLeaderboard(db, request.session.user.id),
+            currentUserId: request.session.user.id,
+        });
     });
 
     // A friend's character sheet, read-only. Friends can see each other's

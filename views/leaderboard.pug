@@ -2,13 +2,13 @@ extends layout
 
 block content
   .py-4
-    h1.mb-1 Leaderboard
-    p.text-muted.mb-4 The top adventurers in the forest, ranked by monsters defeated plus rooms explored. Level breaks ties. Players who keep their account private don't appear.
+    h1.mb-1= heading
+    p.text-muted.mb-4= intro
 
     if entries.length === 0
       .card.bg-dark.border-secondary
         .card-body
-          p.text-muted.fst-italic.mb-0 Nobody has made the board yet. Log in, play, and your character could be first.
+          p.text-muted.fst-italic.mb-0= emptyMessage
     else
       .table-responsive
         table.table.table-dark.table-striped.align-middle
@@ -39,4 +39,4 @@ block content
                   strong= entry.score
 
     .mt-4
-      a.btn.btn-outline-light(href="/") Return to Menu
+      a.btn.btn-outline-light(href=backHref)= backLabel
