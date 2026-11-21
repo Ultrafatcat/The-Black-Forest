@@ -5,6 +5,9 @@ block content
     h1.mb-1= heading
     p.text-muted.mb-4= intro
 
+    if message
+      .alert(class='alert-' + message.type)= message.text
+
     if entries.length === 0
       .card.bg-dark.border-secondary
         .card-body
@@ -21,6 +24,8 @@ block content
               th.text-end Defeated
               th.text-end Explored
               th.text-end Score
+              if showFriendActions
+                th
           tbody
             each entry in entries
               tr(class=entry.userId === currentUserId ? 'table-active' : '')
@@ -37,6 +42,21 @@ block content
                 td.text-end= entry.roomsExplored
                 td.text-end
                   strong= entry.score
+                if showFriendActions
+                  td.text-end
+                    if entry.userId === currentUserId
+                      //- your own row has no friend action
+                    else if friendStates[entry.userId] === 'friends'
+                      span.badge.text-bg-secondary Friends
+                    else if friendStates[entry.userId] === 'request_sent'
+                      span.badge.text-bg-secondary Request sent
+                    else if friendStates[entry.userId] === 'request_received'
+                      a.btn.btn-sm.btn-outline-success(href="/friends") Answer request
+                    else
+                      form(method="post" action="/friends/request")
+                        input(type="hidden" name="userId" value=entry.userId)
+                        input(type="hidden" name="returnTo" value="leaderboard")
+                        button.btn.btn-sm.btn-outline-success(type="submit") Add friend
 
     .mt-4
       a.btn.btn-outline-light(href=backHref)= backLabel

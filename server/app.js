@@ -16,10 +16,10 @@ import { resolveEquip, resolveUse } from './game/inventory.js';
 import { resolveCombatRound } from './game/combat.js';
 import { applyXpGain } from './game/leveling.js';
 import { getPublicLeaderboard, getFriendsLeaderboard } from './leaderboard.js';
-import { resolveFriendRequest, resolveFriendResponse } from './game/friends.js';
+import { resolveFriendRequest, resolveFriendResponse, relationshipStatus } from './game/friends.js';
 import {
     findUserByUsername, findFriendshipsBetween, createFriendRequest, reopenFriendRequest,
-    findFriendship, setFriendshipStatus, loadFriendsPage, loadFriendCharacter,
+    findFriendship, setFriendshipStatus, loadFriendsPage, loadFriendCharacter, findUserById, findFriendshipsOf,
 } from './friendsQueries.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -717,6 +717,21 @@ export function createApp() {
     // Public to everyone, logged in or not -- the page only ever shows the
     // top 20 characters of accounts that haven't marked themselves private.
     app.get('/leaderboard', (request, response) => {
+        const me = request.session.user ? request.session.user.id : null;
+        const entries = getPublicLeaderboard(db);
+
+        // Logged-in players get an Add-friend button per row; which button
+        // (or label) depends on where they already stand with that player.
+        const myFriendships = me ? findFriendshipsOf(db, me) : [];
+        const friendStates = {};
+        for (const entry of entries) {
+            friendStates[entry.userId] = relationshipStatus(myFriendships, me, entry.userId);
+        }
+
+        // One-time result of the last Add-friend click, shown once.
+        const message = request.session.leaderboardMessage || null;
+        request.session.leaderboardMessage = null;
+
         response.render('leaderboard', {
             title: 'Leaderboard',
             heading: 'Leaderboard',
@@ -724,8 +739,11 @@ export function createApp() {
             emptyMessage: 'Nobody has made the board yet. Log in, play, and your character could be first.',
             backHref: '/',
             backLabel: 'Return to Menu',
-            entries: getPublicLeaderboard(db),
-            currentUserId: request.session.user ? request.session.user.id : null,
+            entries,
+            currentUserId: me,
+            showFriendActions: Boolean(me),
+            friendStates,
+            message,
         });
     });
 
@@ -758,12 +776,29 @@ export function createApp() {
         }
 
         const me = request.session.user.id;
+        // The Friends page sends a typed username; a Leaderboard row sends
+        // the player's id instead, so public pages never have to show login
+        // usernames (only nicknames).
         const typedName = (request.body.username || '').trim();
-        const addressee = typedName ? findUserByUsername(db, typedName) : undefined;
+        const byId = !typedName && /^\d+$/.test(String(request.body.userId || ''));
+        const addressee = byId
+            ? findUserById(db, Number(request.body.userId))
+            : (typedName ? findUserByUsername(db, typedName) : undefined);
         const existing = addressee ? findFriendshipsBetween(db, me, addressee.id) : [];
 
-        const result = resolveFriendRequest(me, typedName, addressee, existing);
+        // Only the Leaderboard asks to come back to itself; anything else
+        // (including a tampered value) goes to the Friends page.
+        const fromLeaderboard = request.body.returnTo === 'leaderboard';
+
+        const result = byId && !addressee
+            ? { ok: false, error: 'That player was not found.' }
+            : resolveFriendRequest(me, typedName, addressee, existing);
+
         if (!result.ok) {
+            if (fromLeaderboard) {
+                request.session.leaderboardMessage = { type: 'danger', text: result.error };
+                return response.redirect('/leaderboard');
+            }
             return renderFriends(request, response, { status: 400, error: result.error, username: typedName });
         }
 
@@ -773,7 +808,12 @@ export function createApp() {
             createFriendRequest(db, me, addressee.id);
         }
 
-        request.session.friendsNotice = `Friend request sent to ${addressee.nickname}.`;
+        const sent = `Friend request sent to ${addressee.nickname}.`;
+        if (fromLeaderboard) {
+            request.session.leaderboardMessage = { type: 'success', text: sent };
+            return response.redirect('/leaderboard');
+        }
+        request.session.friendsNotice = sent;
         response.redirect('/friends');
     });
 
@@ -794,6 +834,9 @@ export function createApp() {
             backLabel: 'Return to Friends',
             entries: getFriendsLeaderboard(db, request.session.user.id),
             currentUserId: request.session.user.id,
+            showFriendActions: false,
+            friendStates: {},
+            message: null,
         });
     });
 

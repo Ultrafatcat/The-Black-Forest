@@ -90,3 +90,11 @@ export function loadFriendCharacter(db, userId) {
     const character = db.prepare('SELECT * FROM characters WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(userId) || null;
     return { nickname: user.nickname, character };
 }
+export function findUserById(db, userId) {
+    return db.prepare('SELECT id, username, nickname FROM users WHERE id = ?').get(userId);
+}
+
+// Every friendship row that involves this player, in either direction.
+export function findFriendshipsOf(db, userId) {
+    return db.prepare('SELECT * FROM friendships WHERE requester_user_id = ? OR addressee_user_id = ?').all(userId, userId);
+}

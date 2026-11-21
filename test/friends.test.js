@@ -10,6 +10,7 @@ import {
     resolveFriendResponse,
     otherUserId,
     acceptedFriendIds,
+    relationshipStatus,
 } from '../server/game/friends.js';
 
 const me = 1;
@@ -113,4 +114,30 @@ test('acceptedFriendIds lists only accepted friendships, in either direction', (
         row({ id: 4, requester_user_id: 5, addressee_user_id: 1, status: 'declined' }),
     ];
     assert.deepEqual(acceptedFriendIds(friendships, 1), [2, 3]);
+});
+test('relationshipStatus is none when there is no row', () => {
+    assert.equal(relationshipStatus([], 1, 2), 'none');
+});
+
+test('relationshipStatus reports friends for an accepted row, from either side', () => {
+    const rows = [row({ requester_user_id: 1, addressee_user_id: 2, status: 'accepted' })];
+    assert.equal(relationshipStatus(rows, 1, 2), 'friends');
+    assert.equal(relationshipStatus(rows, 2, 1), 'friends');
+});
+
+test('relationshipStatus tells a sent request from a received one', () => {
+    const rows = [row({ requester_user_id: 1, addressee_user_id: 2, status: 'pending' })];
+    assert.equal(relationshipStatus(rows, 1, 2), 'request_sent');
+    assert.equal(relationshipStatus(rows, 2, 1), 'request_received');
+});
+
+test('relationshipStatus treats a declined row as none so asking again is allowed', () => {
+    const rows = [row({ requester_user_id: 1, addressee_user_id: 2, status: 'declined' })];
+    assert.equal(relationshipStatus(rows, 1, 2), 'none');
+    assert.equal(relationshipStatus(rows, 2, 1), 'none');
+});
+
+test('relationshipStatus ignores rows about other pairs', () => {
+    const rows = [row({ requester_user_id: 3, addressee_user_id: 4, status: 'accepted' })];
+    assert.equal(relationshipStatus(rows, 1, 2), 'none');
 });

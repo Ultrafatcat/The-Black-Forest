@@ -76,3 +76,24 @@ export function acceptedFriendIds(friendships, userId) {
         .filter((friendship) => friendship.status === 'accepted')
         .map((friendship) => otherUserId(friendship, userId));
 }
+// How `myId` stands with `otherId`, from any list of friendship rows that
+// includes the pair. One of:
+//   'friends'          -- an accepted friendship
+//   'request_sent'     -- I asked them and it's still pending
+//   'request_received' -- they asked me and it's still pending
+//   'none'             -- no row, or a declined one (a declined request
+//                         doesn't block asking again, see resolveFriendRequest)
+// The Leaderboard uses this to decide which button each row gets.
+export function relationshipStatus(friendships, myId, otherId) {
+    const row = friendships.find((friendship) =>
+        (friendship.requester_user_id === myId && friendship.addressee_user_id === otherId)
+        || (friendship.requester_user_id === otherId && friendship.addressee_user_id === myId));
+
+    if (!row || row.status === 'declined') {
+        return 'none';
+    }
+    if (row.status === 'accepted') {
+        return 'friends';
+    }
+    return row.requester_user_id === myId ? 'request_sent' : 'request_received';
+}
