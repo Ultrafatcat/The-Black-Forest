@@ -15,6 +15,7 @@ import { DICTIONARY_ENTRIES } from './game/dictionary.js';
 import { resolveEquip, resolveUse } from './game/inventory.js';
 import { resolveCombatRound } from './game/combat.js';
 import { applyXpGain } from './game/leveling.js';
+import { getPublicLeaderboard } from './leaderboard.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -706,6 +707,16 @@ export function createApp() {
 
         const account = db.prepare('SELECT username, nickname, is_public FROM users WHERE id = ?').get(request.session.user.id);
         response.render('account', { title: 'Account', account, error: null, saved: true });
+    });
+
+    // Public to everyone, logged in or not -- the page only ever shows the
+    // top 20 characters of accounts that haven't marked themselves private.
+    app.get('/leaderboard', (request, response) => {
+        response.render('leaderboard', {
+            title: 'Leaderboard',
+            entries: getPublicLeaderboard(db),
+            currentUserId: request.session.user ? request.session.user.id : null,
+        });
     });
 
     app.get('/dictionary', (request, response) => {

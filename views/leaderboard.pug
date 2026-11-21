@@ -1,0 +1,42 @@
+extends layout
+
+block content
+  .py-4
+    h1.mb-1 Leaderboard
+    p.text-muted.mb-4 The top adventurers in the forest, ranked by monsters defeated plus rooms explored. Level breaks ties. Players who keep their account private don't appear.
+
+    if entries.length === 0
+      .card.bg-dark.border-secondary
+        .card-body
+          p.text-muted.fst-italic.mb-0 Nobody has made the board yet. Log in, play, and your character could be first.
+    else
+      .table-responsive
+        table.table.table-dark.table-striped.align-middle
+          thead
+            tr
+              th #
+              th Player
+              th Character
+              th.text-end Level
+              th.text-end Defeated
+              th.text-end Explored
+              th.text-end Score
+          tbody
+            each entry in entries
+              tr(class=entry.userId === currentUserId ? 'table-active' : '')
+                td= entry.rank
+                td
+                  = entry.nickname
+                  if entry.userId === currentUserId
+                    span.badge.text-bg-success.ms-2 You
+                td
+                  = entry.characterName
+                  span.text-muted.small= ' · ' + entry.race + ' ' + entry.characterClass
+                td.text-end= entry.level
+                td.text-end= entry.monstersDefeated
+                td.text-end= entry.roomsExplored
+                td.text-end
+                  strong= entry.score
+
+    .mt-4
+      a.btn.btn-outline-light(href="/") Return to Menu
