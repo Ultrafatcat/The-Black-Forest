@@ -1,14 +1,29 @@
-:root {
-    /* Bootstrap components (e.g. .card) read this variable for their text
-       color rather than inheriting the plain `color` property below, so
-       both need to be set or anything inside a .card.bg-dark renders
-       near-invisible (dark text on a dark background). */
+/* Site-wide look for The Black Forest.
+ *
+ * The page colour comes from Bootstrap's data-bs-theme attribute, which
+ * layout.pug sets on <html> from the player's Settings ("dark" or "light").
+ * Bootstrap re-colours its own components (forms, alerts, tables, cards,
+ * list groups, text-muted...) for each theme, so this file only sets the
+ * forest palette and patches the few spots views hard-code as dark.
+ *
+ * The text-size setting is a class on <html> (text-size-small / -medium /
+ * -large). Bootstrap sizes everything in rem, so changing the root font
+ * size scales every page at once. */
+
+/* ---- Text size (Settings) ---- */
+html.text-size-small { font-size: 87.5%; }   /* 14px */
+html.text-size-medium { font-size: 100%; }   /* 16px, the browser default */
+html.text-size-large { font-size: 118.75%; } /* 19px */
+
+/* ---- Palette ---- */
+[data-bs-theme="dark"] {
+    --bs-body-bg: #12100e;
     --bs-body-color: #e8e3da;
 }
 
-body {
-    background-color: #12100e;
-    color: #e8e3da;
+[data-bs-theme="light"] {
+    --bs-body-bg: #f4efe6;
+    --bs-body-color: #26221d;
 }
 
 .navbar-brand {
@@ -16,17 +31,26 @@ body {
     letter-spacing: 0.02em;
 }
 
-/* Form fields keep Bootstrap's white background even on this dark theme,
-   so their text (and the dots standing in for a typed password) need to
-   stay dark -- otherwise they inherit the page's light --bs-body-color
-   above and become nearly invisible on that white background.
-   Bootstrap's own .form-control:focus rule re-applies the light color
-   specifically while a field is focused (i.e. while you're typing in it),
-   and it's more specific than the plain rule above, so :focus needs its
-   own copy of this or the field goes invisible-while-typing again. */
-.form-control,
-.form-control:focus,
-.form-select,
-.form-select:focus {
-    color: #212529;
+/* ---- Light mode patches ----
+ * The views style cards and list rows with Bootstrap's .bg-dark and buttons
+ * with .btn-outline-light, which are dark-theme-only: .bg-dark is
+ * !important and .btn-outline-light is near-white. In light mode they would
+ * be dark slabs and invisible buttons, so they're re-coloured here. The top
+ * navbar is also .bg-dark and stays dark in both themes on purpose. */
+[data-bs-theme="light"] .bg-dark:not(.navbar) {
+    background-color: #ffffff !important;
+    color: #26221d;
+}
+
+[data-bs-theme="light"] .btn-outline-light {
+    --bs-btn-color: #26221d;
+    --bs-btn-border-color: #6c757d;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #343a40;
+    --bs-btn-hover-border-color: #343a40;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #343a40;
+    --bs-btn-active-border-color: #343a40;
+    --bs-btn-disabled-color: #6c757d;
+    --bs-btn-disabled-border-color: #adb5bd;
 }
