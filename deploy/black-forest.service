@@ -26,6 +26,11 @@ Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=DATA_FILE=/opt/black-forest/data/black-forest.db
 
+# SESSION_SECRET lives here, not in the repository. setup-ec2.sh creates the
+# file (owned by root, mode 600); systemd reads it as root before the app
+# starts as the unprivileged user.
+EnvironmentFile=/etc/black-forest.env
+
 Restart=always
 RestartSec=5
 

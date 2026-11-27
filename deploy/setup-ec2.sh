@@ -11,10 +11,12 @@
 #   sudo bash deploy/setup-ec2.sh
 #
 # It installs Node.js and nginx, creates the service account and
-# directories, and registers the app with systemd so it starts on boot.
+# directories, generates the session secret, and registers the app with
+# systemd so it starts on boot.
 # After this, use deploy/deploy.sh from your laptop to push code.
 #
-# Works on Amazon Linux 2023 and on Ubuntu 22.04/24.04.
+# Works on Amazon Linux 2023 and on Ubuntu 22.04/24.04. Safe to run again: it
+# keeps the existing service account, data, and session secret.
 
 set -euo pipefail
 
@@ -60,10 +62,10 @@ say "Installing Node.js ${NODE_MAJOR} and nginx"
 if [ "$PKG" = "dnf" ]; then
     dnf -y update
     curl -fsSL "https://rpm.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
-    dnf -y install nodejs nginx rsync
+    dnf -y install nodejs nginx rsync openssl
 else
     apt-get update -y
-    apt-get install -y ca-certificates curl gnupg rsync
+    apt-get install -y ca-certificates curl gnupg rsync openssl
     curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
     apt-get install -y nodejs nginx
 fi
@@ -91,6 +93,24 @@ chown -R "$DEPLOY_USER:$APP_USER" "$APP_DIR"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR/data"
 chmod 750 "$APP_DIR"
 chmod 770 "$APP_DIR/data"
+
+# --- session secret -----------------------------------------------------
+
+# The secret that signs login cookies. It's generated here, on the server, so
+# it never appears in the repository, and it's only readable by root:
+# systemd reads this file as root and hands the value to the app. An existing
+# file is kept, so re-running this script doesn't log everyone out.
+say "Creating the session secret"
+
+ENV_FILE="/etc/${APP_NAME}.env"
+
+if [ -f "$ENV_FILE" ]; then
+    echo "$ENV_FILE already exists, keeping the existing secret"
+else
+    ( umask 077; printf 'SESSION_SECRET=%s\n' "$(openssl rand -hex 32)" > "$ENV_FILE" )
+fi
+chown root:root "$ENV_FILE"
+chmod 600 "$ENV_FILE"
 
 # --- systemd ------------------------------------------------------------
 

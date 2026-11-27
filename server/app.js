@@ -35,9 +35,15 @@ export function createApp() {
     app.use(express.static(path.join(ROOT_DIR, 'public')));
     app.use(express.urlencoded({ extended: false })); // parses the login/register form posts
 
-    // SESSION_SECRET is set in production by setup-ec2.sh; a fixed fallback
-    // is fine for local development -- there's nothing in a dev session
-    // worth protecting against a guessed secret.
+    // SESSION_SECRET signs the session cookie. On the server, setup-ec2.sh
+    // generates a random one into /etc/black-forest.env and systemd passes it
+    // in. A fixed fallback is fine for local development -- there's nothing
+    // in a dev session worth protecting -- but the fallback is public (it's in
+    // this file), so in production the app refuses to start without a real
+    // secret instead of quietly using it.
+    if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+        throw new Error('SESSION_SECRET is not set. On the server, run deploy/setup-ec2.sh to create it.');
+    }
     app.use(session({
         secret: process.env.SESSION_SECRET || 'black-forest-dev-secret',
         resave: false,

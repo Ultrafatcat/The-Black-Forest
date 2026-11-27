@@ -5,14 +5,15 @@
 #
 # Run from the project root on your own machine (macOS or Linux/Git Bash):
 #
-#   ./deploy/deploy.sh -h 54.165.23.891 -i ./login.pem
+#   ./deploy/deploy.sh -h 203.0.113.25 -i ./login.pem
 #
 # What it does:
 #   1. Run tests locally -- refuses to deploy if anything's broken.
 #   2. Copy the source to /opt/black-forest on the server with tar over ssh
 #      (node_modules, .git and the server's own data file are left behind).
-#   3. Install production dependencies there and seed the world data.
-#   4. Restart the black-forest systemd service.
+#   3. Install production dependencies there.
+#   4. Restart the black-forest systemd service (which also seeds any missing
+#      world data before the app starts).
 #   5. Check GET /health on the server to confirm the deploy succeeded.
 #
 # Options:
@@ -83,6 +84,11 @@ echo "==> Installing dependencies, seeding, and restarting the service"
 ssh "${SSH_OPTS[@]}" "$TARGET" "
     set -e
     cd '${REMOTE_DIR}'
+    if [ ! -f /etc/black-forest.env ]; then
+        echo 'ERROR: /etc/black-forest.env is missing, so the app has no session secret.' >&2
+        echo 'Run the one-time server setup first: sudo bash deploy/setup-ec2.sh' >&2
+        exit 1
+    fi
     npm ci --omit=dev
     sudo systemctl restart ${SERVICE}
     sleep 2
