@@ -24,6 +24,9 @@ html.text-size-large { font-size: 118.75%; } /* 19px */
 [data-bs-theme="light"] {
     --bs-body-bg: #f4efe6;
     --bs-body-color: #26221d;
+    /* Bootstrap's default light border is nearly invisible on the parchment
+       background, which hid text-field edges and unselected radio buttons. */
+    --bs-border-color: #a39a8b;
 }
 
 .navbar-brand {

@@ -111,3 +111,25 @@ test('the stylesheet defines all three text sizes and a light-mode palette', () 
     assert.match(css, /\[data-bs-theme="light"\]/);
     assert.match(css, /\[data-bs-theme="dark"\]/);
 });
+
+test('the Dictionary points DROP and USE to the Inventory page instead of "coming soon"', async () => {
+    const response = await request(createApp()).get('/dictionary');
+    assert.equal(response.status, 200);
+    assert.doesNotMatch(response.text, /Coming in Checkpoint/);
+    assert.match(response.text, /Use the Inventory page/);
+});
+
+test('every page uses the same green primary button on its main form', async () => {
+    const app = createApp();
+    for (const page of ['/login', '/register']) {
+        const html = (await request(app).get(page)).text;
+        assert.doesNotMatch(html, /btn-primary/, page);
+        assert.match(html, /btn btn-success btn-lg" type="submit"/, page);
+    }
+});
+
+test('the page body is a full-height column so the footer stays at the bottom', async () => {
+    const html = (await request(createApp()).get('/')).text;
+    assert.match(html, /<body class="d-flex flex-column min-vh-100">/);
+    assert.match(html, /<main class="container py-4 flex-grow-1">/);
+});
