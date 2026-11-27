@@ -10,7 +10,7 @@ block content
       .alert.alert-danger= error
 
     .col-10.col-sm-6.col-md-4
-      form(method="post" action="/settings")
+      form(method="post" action=(fromAdventure ? "/settings?from=adventure" : "/settings"))
         fieldset.mb-4
           legend.form-label.fs-6 Colour mode
           .form-check
@@ -39,4 +39,4 @@ block content
       else
         p.text-muted.small.mt-3 You're not logged in, so these last only for this visit. Log in to keep them with your account.
 
-      a.btn.btn-outline-light.mt-3(href="/") Return to Menu
+      a.btn.btn-outline-light.mt-3(href=returnTo)= fromAdventure ? "Return to Adventure" : "Return to Menu"

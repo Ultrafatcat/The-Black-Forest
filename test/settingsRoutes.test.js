@@ -132,5 +132,53 @@ test('the Menu and Adventure Settings buttons are now real links', async () => {
 
     await agent.post('/character/new').type('form').send({ name: 'Linky', race: 'Fae', class: 'Rogue' });
     const adventure = await agent.get('/character/adventure');
-    assert.match(adventure.text, /<a[^>]*href="\/settings"[^>]*>Settings<\/a>/);
+    assert.match(adventure.text, /<a[^>]*href="\/settings\?from=adventure"[^>]*>Settings<\/a>/);
+});
+
+test('Settings opened from the Adventure page returns to the Adventure page', async () => {
+    const agent = await registerAgent('settingsfromadv');
+
+    const response = await agent.get('/settings?from=adventure');
+    assert.equal(response.status, 200);
+    assert.match(response.text, /<a[^>]*href="\/character\/adventure"[^>]*>Return to Adventure<\/a>/);
+    assert.doesNotMatch(response.text, /Return to Menu/);
+});
+
+test('Settings opened from the Menu (or typed in) returns to the Menu', async () => {
+    const agent = await registerAgent('settingsfrommenu');
+
+    for (const url of ['/settings', '/settings?from=somewhere-else', '/settings?from=https://evil.example']) {
+        const response = await agent.get(url);
+        assert.match(response.text, /<a[^>]*href="\/"[^>]*>Return to Menu<\/a>/, url);
+        assert.doesNotMatch(response.text, /Return to Adventure/, url);
+    }
+});
+
+test('saving from the Adventure page keeps the Return to Adventure button', async () => {
+    const agent = await registerAgent('settingssaveadv');
+
+    // The form posts back to the same ?from=adventure address.
+    const page = await agent.get('/settings?from=adventure');
+    assert.match(page.text, /<form[^>]*action="\/settings\?from=adventure"/);
+
+    const saved = await agent.post('/settings?from=adventure').type('form').send({ theme: 'light', textSize: 'small' });
+    assert.equal(saved.status, 200);
+    assert.match(saved.text, /Saved/);
+    assert.match(saved.text, /<a[^>]*href="\/character\/adventure"[^>]*>Return to Adventure<\/a>/);
+
+    // A rejected save keeps it too.
+    const rejected = await agent.post('/settings?from=adventure').type('form').send({ theme: 'neon', textSize: 'small' });
+    assert.equal(rejected.status, 400);
+    assert.match(rejected.text, /Return to Adventure/);
+});
+
+test('the Adventure page\'s Settings button opens Settings with from=adventure; the Menu\'s does not', async () => {
+    const agent = await registerAgent('settingsbuttons');
+    await agent.post('/character/new').type('form').send({ name: 'Wanderer', race: 'Fae', class: 'Rogue' });
+
+    const adventure = await agent.get('/character/adventure');
+    assert.match(adventure.text, /<a[^>]*href="\/settings\?from=adventure"[^>]*>Settings<\/a>/);
+
+    const menu = await agent.get('/');
+    assert.match(menu.text, /<a[^>]*href="\/settings"[^>]*>Settings<\/a>/);
 });

@@ -706,14 +706,27 @@ export function createApp() {
 
     // Open to everyone: a logged-in player's choices are saved to their
     // account, a guest's to their session.
+    //
+    // ?from=adventure (the Adventure page's Settings button) sends the back
+    // button to the Adventure page instead of the Menu, the same way the
+    // Dictionary does. Anything else, or nothing, falls back to the Menu.
+    function settingsPageLocals(request) {
+        const fromAdventure = request.query.from === 'adventure';
+        return {
+            title: 'Settings',
+            fromAdventure,
+            returnTo: fromAdventure ? '/character/adventure' : '/',
+        };
+    }
+
     app.get('/settings', (request, response) => {
-        response.render('settings', { title: 'Settings', error: null, saved: false });
+        response.render('settings', { ...settingsPageLocals(request), error: null, saved: false });
     });
 
     app.post('/settings', (request, response) => {
         const result = resolveSettings(request.body);
         if (!result.ok) {
-            return response.status(400).render('settings', { title: 'Settings', error: result.error, saved: false });
+            return response.status(400).render('settings', { ...settingsPageLocals(request), error: result.error, saved: false });
         }
 
         if (request.session.user) {
@@ -726,7 +739,7 @@ export function createApp() {
         // This response was already given the old settings by the middleware
         // above, so swap in the new ones before the page is drawn.
         response.locals.settings = result.settings;
-        response.render('settings', { title: 'Settings', error: null, saved: true });
+        response.render('settings', { ...settingsPageLocals(request), error: null, saved: true });
     });
 
     app.get('/account', (request, response) => {
