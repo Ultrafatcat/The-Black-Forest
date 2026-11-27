@@ -16,6 +16,7 @@ import { resolveEquip, resolveUse } from './game/inventory.js';
 import { resolveCombatRound } from './game/combat.js';
 import { applyXpGain } from './game/leveling.js';
 import { getPublicLeaderboard, getFriendsLeaderboard } from './leaderboard.js';
+import { resolveSettings, normalizeSettings } from './game/settings.js';
 import { resolveFriendRequest, resolveFriendResponse, relationshipStatus } from './game/friends.js';
 import {
     findUserByUsername, findFriendshipsBetween, createFriendRequest, reopenFriendRequest,
@@ -48,6 +49,22 @@ export function createApp() {
     // passing it explicitly from every route.
     app.use((request, response, next) => {
         response.locals.user = request.session.user || null;
+        next();
+    });
+
+    // The player's Settings (colour theme and text size). A logged-in player's
+    // choice lives on their users row, so it follows them to any device; a
+    // guest's lives in their session for as long as that lasts. Read on every
+    // request so the layout can apply it to every page.
+    function loadSettings(request) {
+        if (request.session.user) {
+            const row = db.prepare('SELECT theme, text_size FROM users WHERE id = ?').get(request.session.user.id);
+            return normalizeSettings(row);
+        }
+        return normalizeSettings(request.session.settings);
+    }
+    app.use((request, response, next) => {
+        response.locals.settings = loadSettings(request);
         next();
     });
 
@@ -679,6 +696,31 @@ export function createApp() {
         }
 
         response.redirect('/character/inventory');
+    });
+
+    // Open to everyone: a logged-in player's choices are saved to their
+    // account, a guest's to their session.
+    app.get('/settings', (request, response) => {
+        response.render('settings', { title: 'Settings', error: null, saved: false });
+    });
+
+    app.post('/settings', (request, response) => {
+        const result = resolveSettings(request.body);
+        if (!result.ok) {
+            return response.status(400).render('settings', { title: 'Settings', error: result.error, saved: false });
+        }
+
+        if (request.session.user) {
+            db.prepare('UPDATE users SET theme = ?, text_size = ? WHERE id = ?')
+                .run(result.settings.theme, result.settings.textSize, request.session.user.id);
+        } else {
+            request.session.settings = result.settings;
+        }
+
+        // This response was already given the old settings by the middleware
+        // above, so swap in the new ones before the page is drawn.
+        response.locals.settings = result.settings;
+        response.render('settings', { title: 'Settings', error: null, saved: true });
     });
 
     app.get('/account', (request, response) => {

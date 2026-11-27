@@ -1,0 +1,42 @@
+extends layout
+
+block content
+  .py-4
+    h1.mb-4 Settings
+
+    if saved
+      .alert.alert-success Saved.
+    if error
+      .alert.alert-danger= error
+
+    .col-10.col-sm-6.col-md-4
+      form(method="post" action="/settings")
+        fieldset.mb-4
+          legend.form-label.fs-6 Colour mode
+          .form-check
+            input#themeDark.form-check-input(type="radio" name="theme" value="dark" checked=(settings.theme === 'dark'))
+            label.form-check-label(for="themeDark") Dark
+          .form-check
+            input#themeLight.form-check-input(type="radio" name="theme" value="light" checked=(settings.theme === 'light'))
+            label.form-check-label(for="themeLight") Light
+
+        fieldset.mb-4
+          legend.form-label.fs-6 Text size
+          .form-check
+            input#sizeSmall.form-check-input(type="radio" name="textSize" value="small" checked=(settings.textSize === 'small'))
+            label.form-check-label(for="sizeSmall") Small
+          .form-check
+            input#sizeMedium.form-check-input(type="radio" name="textSize" value="medium" checked=(settings.textSize === 'medium'))
+            label.form-check-label(for="sizeMedium") Medium
+          .form-check
+            input#sizeLarge.form-check-input(type="radio" name="textSize" value="large" checked=(settings.textSize === 'large'))
+            label.form-check-label(for="sizeLarge") Large
+
+        button.btn.btn-success(type="submit") Save Settings
+
+      if user
+        p.text-muted.small.mt-3 Saved to your account, so they follow you to any device.
+      else
+        p.text-muted.small.mt-3 You're not logged in, so these last only for this visit. Log in to keep them with your account.
+
+      a.btn.btn-outline-light.mt-3(href="/") Return to Menu
